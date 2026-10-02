@@ -23,3 +23,8 @@ flutter run -d chrome
 curl http://localhost:3000/api/saude
 ```
 
+
+
+cd ingestao && dart run bin/servidor.dart     
+cd backend  && npm run dev                    
+cd frontend && flutter run -d chrome

@@ -17,7 +17,6 @@ const rotasVeiculos = require('./rotas/rotasVeiculos');
 const rotasViagens = require('./rotas/rotasViagens');
 const rotasLocalizacao = require('./rotas/rotasLocalizacao');
 const rotasIndicadores = require('./rotas/rotasIndicadores');
-const rotasTransmissao = require('./rotas/rotasTransmissao');
 
 const app = express();
 const PORTA = process.env.PORT || 3000;
@@ -35,7 +34,6 @@ app.use('/api/veiculos', rotasVeiculos);
 app.use('/api/viagens', rotasViagens);
 app.use('/api/localizacao', rotasLocalizacao);
 app.use('/api/indicadores', rotasIndicadores);
-app.use('/api/transmissao', rotasTransmissao);
 
 // Rota de saúde
 app.get('/api/saude', (req, res) => {

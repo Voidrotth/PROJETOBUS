@@ -30,12 +30,10 @@ class ServicoApi {
   // ==================== REQUISIÇÕES AUTENTICADAS ====================
 
   static Future<dynamic> _requisitar(String metodo, String caminho,
-      {Object? corpo, Duration tempoLimite = const Duration(seconds: 20), String? token}) async {
-    // token explícito: transmissão do motorista sem login ("Sou motorista")
-    final chave = token ?? Sessao.token;
+      {Object? corpo, Duration tempoLimite = const Duration(seconds: 20)}) async {
     final requisicao = http.Request(metodo, Uri.parse('$urlBase$caminho'))
       ..headers['Content-Type'] = 'application/json';
-    if (chave != null) requisicao.headers['Authorization'] = 'Bearer $chave';
+    if (Sessao.token != null) requisicao.headers['Authorization'] = 'Bearer ${Sessao.token}';
     if (corpo != null) requisicao.body = jsonEncode(corpo);
 
     final resposta = await http.Response.fromStream(await requisicao.send().timeout(tempoLimite));
@@ -43,7 +41,7 @@ class ServicoApi {
     if (resposta.statusCode >= 200 && resposta.statusCode < 300) {
       return resposta.body.isEmpty ? null : jsonDecode(resposta.body);
     }
-    if (resposta.statusCode == 401 && token == null && Sessao.token != null) {
+    if (resposta.statusCode == 401 && Sessao.token != null) {
       await Sessao.sair(expirou: true);
     }
     throw ErroApi(_mensagemDeErro(resposta, 'Erro ${resposta.statusCode}'), resposta.statusCode);
@@ -74,30 +72,29 @@ class ServicoApi {
       await _requisitar(id == null ? 'POST' : 'PUT', id == null ? '/usuarios' : '/usuarios/$id', corpo: dados);
 
 
-  // ==================== TRANSMISSÃO (SOU MOTORISTA) ====================
-
-  /// Abre (ou retoma) a viagem só com nome e placa. Devolve token, viagemId, motorista e veículo.
-  static Future<Map<String, dynamic>> iniciarTransmissao(String nome, String placa) async =>
-      await _requisitar('POST', '/transmissao/iniciar', corpo: {'nome': nome, 'placa': placa});
-
   // ==================== VIAGENS ====================
 
-  static Future<Map<String, dynamic>> iniciarViagem(String veiculoId, String linha, double? kmInicial) async =>
-      await _requisitar('POST', '/viagens/iniciar', corpo: {
-        'veiculoId': veiculoId,
-        'linha': linha,
-        'kmInicial': ?kmInicial,
-      });
+  /// Linhas que existem nos relatórios importados (ex.: ["01", "02", ...])
+  static Future<List<String>> linhasDisponiveis() async =>
+      ((await _requisitar('GET', '/viagens/opcoes'))['linhas'] as List).cast<String>();
+
+  /// dados: placa, linha, kmInicial (o resto da viagem vem dos relatórios)
+  static Future<Map<String, dynamic>> iniciarViagem(Map<String, dynamic> dados) async =>
+      await _requisitar('POST', '/viagens/iniciar', corpo: dados);
 
   static Future<Map<String, dynamic>?> viagemAtual() async => await _requisitar('GET', '/viagens/atual');
 
-  static Future<Map<String, dynamic>> encerrarViagem(String viagemId, Map<String, dynamic> fechamento, {String? token}) async =>
-      await _requisitar('POST', '/viagens/$viagemId/encerrar', corpo: fechamento, token: token);
+  static Future<Map<String, dynamic>> encerrarViagem(String viagemId, Map<String, dynamic> fechamento) async =>
+      await _requisitar('POST', '/viagens/$viagemId/encerrar', corpo: fechamento);
 
-  static Future<void> enviarPosicoes(String viagemId, List<Map<String, dynamic>> posicoes, {String? token}) async {
+  static Future<void> enviarPosicoes(String viagemId, List<Map<String, dynamic>> posicoes) async {
     await _requisitar('POST', '/localizacao',
-        corpo: {'viagemId': viagemId, 'posicoes': posicoes}, tempoLimite: const Duration(seconds: 15), token: token);
+        corpo: {'viagemId': viagemId, 'posicoes': posicoes}, tempoLimite: const Duration(seconds: 15));
   }
+
+  /// Km rodados (hodômetro) e combustível estimado por ônibus no período (AAAA-MM-DD)
+  static Future<Map<String, dynamic>> kmPorVeiculo(String inicio, String fim) async =>
+      await _requisitar('GET', Uri(path: '/viagens/km', queryParameters: {'inicio': inicio, 'fim': fim}).toString());
 
   static Future<List<Map<String, dynamic>>> viagensAoVivo() async =>
       _lista(await _requisitar('GET', '/viagens/ao-vivo'));

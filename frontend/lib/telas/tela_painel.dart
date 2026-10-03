@@ -34,6 +34,10 @@ class _TelaPainelEstado extends State<TelaPainel> {
   Map<String, dynamic>? _indicadores;
   Map<String, dynamic>? _operacaoMes;
   Map<String, dynamic>? _aoVivo;
+  // Km do hodômetro e combustível por ônibus (app do motorista): hoje e mês corrente
+  Map<String, dynamic>? _kmHoje;
+  Map<String, dynamic>? _kmMes;
+  DateTime? _kmAtualizadoEm;
   bool _carregando = true;
   String? _erro;
   DateTime? _atualizadoEm;
@@ -77,6 +81,11 @@ class _TelaPainelEstado extends State<TelaPainel> {
     for (final evento in ['dados:atualizados', 'viagem:iniciada', 'viagem:encerrada']) {
       socket.on(evento, (_) => _carregar(silencioso: true));
     }
+    // Ônibus andando: atualiza só os km (no máximo a cada 15 s, as posições chegam a cada 10 s)
+    socket.on('viagem:posicao', (_) {
+      final ultimo = _kmAtualizadoEm;
+      if (ultimo == null || DateTime.now().difference(ultimo) > const Duration(seconds: 15)) _carregarKm();
+    });
     socket.connect();
     _socket = socket;
   }
@@ -104,6 +113,7 @@ class _TelaPainelEstado extends State<TelaPainel> {
       try {
         aoVivo = await ServicoApi.buscarPainel();
       } catch (_) {} // o resumo do app do motorista é opcional aqui
+      await _carregarKm();
       if (!mounted) return;
       setState(() {
         _indicadores = indicadores;
@@ -117,6 +127,23 @@ class _TelaPainelEstado extends State<TelaPainel> {
     } finally {
       if (mounted) setState(() => _carregando = false);
     }
+  }
+
+  Future<void> _carregarKm() async {
+    _kmAtualizadoEm = DateTime.now();
+    final hoje = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    try {
+      final resultados = await Future.wait([
+        ServicoApi.kmPorVeiculo(hoje, hoje),
+        ServicoApi.kmPorVeiculo('${hoje.substring(0, 7)}-01', hoje),
+      ]);
+      if (mounted) {
+        setState(() {
+          _kmHoje = resultados[0];
+          _kmMes = resultados[1];
+        });
+      }
+    } catch (_) {} // sem os km o resto do painel continua
   }
 
   @override
@@ -158,6 +185,7 @@ class _TelaPainelEstado extends State<TelaPainel> {
           _alertasEConferencias(indicadores),
         ],
         _secaoAoVivo(),
+        _secaoKmCombustivel(),
       ],
     );
   }
@@ -345,6 +373,71 @@ class _TelaPainelEstado extends State<TelaPainel> {
         padding: EdgeInsets.only(top: 8),
         child: Text('O mapa com os ônibus em tempo real fica na aba "Ao vivo" (precisa de motoristas usando o app).',
             style: TextStyle(fontSize: 12, color: Colors.black54)),
+      ),
+    ]);
+  }
+
+  // Km rodados por ônibus (hodômetro informado pelo motorista) e combustível estimado pelo consumo de
+  // referência do ônibus (km/L, cadastrado em Frota) até chegarem os relatórios de abastecimento
+  Widget _secaoKmCombustivel() {
+    final hoje = _kmHoje;
+    final mes = _kmMes;
+    if (hoje == null || mes == null) return const SizedBox.shrink();
+    final th = Map<String, dynamic>.from(hoje['totais']);
+    final tm = Map<String, dynamic>.from(mes['totais']);
+    final veiculos = _lista(mes['veiculos']);
+    final hojePorPlaca = {for (final v in _lista(hoje['veiculos'])) v['placa']: v};
+    String litros(dynamic v) => v == null ? '—' : '${_decimal.format(v)} L';
+    return _secao('Km e combustível por ônibus (app do motorista)', [
+      _cartoes([
+        ('Km hoje', _num(th['kmTotal'], _decimal), Icons.speed, Colors.purple),
+        ('Combustível hoje (estimado)', litros(th['litrosEstimados']), Icons.local_gas_station, Colors.orange),
+        ('Km no mês', _num(tm['kmTotal'], _decimal), Icons.calendar_month, Colors.blue),
+        ('Combustível no mês (estimado)', litros(tm['litrosEstimados']), Icons.local_gas_station, Colors.deepOrange),
+        ('Média da frota', tm['kmPorLitro'] == null ? '—' : '${_decimal.format(tm['kmPorLitro'])} km/L', Icons.eco, Colors.green),
+      ]),
+      const SizedBox(height: 12),
+      if (veiculos.isEmpty)
+        const Text('Nenhuma viagem pelo app do motorista neste mês.')
+      else
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: DataTable(
+            headingRowHeight: 40,
+            dataRowMinHeight: 32,
+            dataRowMaxHeight: 32,
+            columns: const [
+              DataColumn(label: Text('Ônibus', style: TextStyle(fontWeight: FontWeight.bold))),
+              DataColumn(label: Text('Km hoje', style: TextStyle(fontWeight: FontWeight.bold)), numeric: true),
+              DataColumn(label: Text('Km no mês', style: TextStyle(fontWeight: FontWeight.bold)), numeric: true),
+              DataColumn(label: Text('Viagens no mês', style: TextStyle(fontWeight: FontWeight.bold)), numeric: true),
+              DataColumn(label: Text('Consumo (km/L)', style: TextStyle(fontWeight: FontWeight.bold)), numeric: true),
+              DataColumn(label: Text('Combustível no mês', style: TextStyle(fontWeight: FontWeight.bold)), numeric: true),
+              DataColumn(label: Text('Situação', style: TextStyle(fontWeight: FontWeight.bold))),
+            ],
+            rows: [
+              for (final v in veiculos)
+                DataRow(cells: [
+                  DataCell(Text([if ((v['prefixo'] ?? '').isNotEmpty) v['prefixo'], v['placa']].join(' · '))),
+                  DataCell(Text(_num(hojePorPlaca[v['placa']]?['kmTotal'] ?? 0, _decimal))),
+                  DataCell(Text(_num(v['kmTotal'], _decimal))),
+                  DataCell(Text(_num(v['viagens']))),
+                  DataCell(Text(_num(v['consumoKmPorLitro'], _decimal))),
+                  DataCell(Text(litros(v['litrosEstimados']))),
+                  DataCell(Text((v['emAndamento'] ?? 0) > 0 ? 'Rodando agora' : '—')),
+                ]),
+            ],
+          ),
+        ),
+      Padding(
+        padding: const EdgeInsets.only(top: 8),
+        child: Text(
+          'Km = hodômetro final − inicial informado pelo motorista (viagem rodando: km do GPS até agora). '
+          'Combustível estimado = km ÷ consumo médio do ônibus (Frota → editar ônibus). '
+          '${(tm['veiculosSemConsumo'] ?? 0) > 0 ? '${tm['veiculosSemConsumo']} ônibus sem consumo cadastrado. ' : ''}'
+          'Os litros reais entram quando chegarem os relatórios de abastecimento.',
+          style: const TextStyle(fontSize: 12, color: Colors.black54),
+        ),
       ),
     ]);
   }

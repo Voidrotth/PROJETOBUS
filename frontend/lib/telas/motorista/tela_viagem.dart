@@ -65,8 +65,10 @@ class _TelaViagemEstado extends State<TelaViagem> {
               child: ListTile(
                 leading: const Icon(Icons.directions_bus, size: 40, color: Colors.green),
                 title: Text('Linha ${widget.viagem['linha']}', style: const TextStyle(fontWeight: FontWeight.bold)),
-                subtitle: Text('${veiculo['prefixo'] ?? ''} ${veiculo['placa'] ?? ''}\n'
-                    'Início ${DateFormat('HH:mm').format(_inicio)} · ${_duracao()} em viagem'),
+                subtitle: Text([
+                  'Prefixo ${veiculo['prefixo'] ?? '-'} · ${veiculo['placa'] ?? ''} · hodômetro inicial ${widget.viagem['kmInicial'] ?? '-'} km',
+                  'Início ${DateFormat('HH:mm').format(_inicio)} · ${_duracao()} em viagem',
+                ].join('\n')),
                 isThreeLine: true,
               ),
             ),

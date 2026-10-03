@@ -32,6 +32,12 @@ const esquemaVeiculo = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  // Consumo médio de referência (km por litro) para estimar o combustível pelos km do hodômetro,
+  // enquanto não chegam os relatórios de abastecimento
+  consumoKmPorLitro: {
+    type: Number,
+    default: null
+  },
   ativo: {
     type: Boolean,
     default: true

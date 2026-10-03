@@ -2,6 +2,7 @@ const express = require('express');
 const roteador = express.Router();
 const Viagem = require('../modelos/Viagem');
 const Pagamento = require('../modelos/Pagamento');
+const ViagemRealizada = require('../modelos/ViagemRealizada');
 const servicoViagem = require('../servicos/servicoViagem');
 const { autenticar, exigirPapel } = require('../middlewares/autenticacao');
 const { rota, ErroHttp } = require('../middlewares/tratarErro');
@@ -12,8 +13,24 @@ const somenteMotorista = exigirPapel('motorista');
 const somenteAdmin = exigirPapel('admin');
 const POPULAR = [{ path: 'veiculo', select: 'placa prefixo' }, { path: 'motorista', select: 'nome' }];
 
+// GET /api/viagens/opcoes
+// Linhas que existem nos relatórios importados (para o motorista escolher, não digitar)
+roteador.get('/opcoes', rota(async (req, res) => {
+  const linhas = await ViagemRealizada.distinct('linha', { atividade: 'normal' });
+  res.json({ linhas: linhas.filter(Boolean).sort() });
+}));
+
+// GET /api/viagens/km?inicio=AAAA-MM-DD&fim=AAAA-MM-DD  (padrão: hoje)
+// Km rodados (hodômetro) e combustível estimado por ônibus, a partir das viagens do app do motorista
+roteador.get('/km', somenteAdmin, rota(async (req, res) => {
+  const hoje = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date());
+  const { inicio = hoje, fim = inicio } = req.query;
+  if (![inicio, fim].every(d => /^\d{4}-\d{2}-\d{2}$/.test(d))) throw new ErroHttp(400, 'Datas no formato AAAA-MM-DD');
+  res.json(await servicoViagem.kmPorVeiculo(inicio, fim));
+}));
+
 // POST /api/viagens/iniciar
-// { veiculoId, linha, kmInicial? }
+// { placa, linha, kmInicial }  (o resto da viagem vem dos relatórios)
 roteador.post('/iniciar', somenteMotorista, rota(async (req, res) => {
   const viagem = await servicoViagem.iniciarViagem(req.usuario.id, req.body);
   res.status(201).json(viagem);

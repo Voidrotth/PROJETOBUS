@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../servicos/servico_api.dart';
-import 'motorista/tela_transmissao.dart';
 
 class TelaLogin extends StatefulWidget {
   final VoidCallback aoEntrar;
@@ -16,6 +15,8 @@ class _TelaLoginEstado extends State<TelaLogin> {
   final _emailCtrl = TextEditingController();
   final _senhaCtrl = TextEditingController();
   bool _entrando = false;
+  // Motorista entra com a matrícula (a mesma dos relatórios); o painel, com o usuário
+  bool _motorista = false;
   String? _erro;
 
   @override
@@ -58,13 +59,15 @@ class _TelaLoginEstado extends State<TelaLogin> {
                   const SizedBox(height: 8),
                   Text('PROJETOBUS',
                       textAlign: TextAlign.center, style: Theme.of(context).textTheme.headlineMedium),
+                  if (_motorista)
+                    const Text('Acesso do motorista', textAlign: TextAlign.center, style: TextStyle(color: Colors.black54)),
                   const SizedBox(height: 32),
                   TextFormField(
                     controller: _emailCtrl,
-                    decoration: const InputDecoration(labelText: 'Usuário', border: OutlineInputBorder()),
-                    keyboardType: TextInputType.text,
+                    decoration: InputDecoration(labelText: _motorista ? 'Matrícula' : 'Usuário', border: const OutlineInputBorder()),
+                    keyboardType: _motorista ? TextInputType.number : TextInputType.text,
                     autofillHints: const [AutofillHints.username],
-                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Informe o usuário' : null,
+                    validator: (v) => (v == null || v.trim().isEmpty) ? (_motorista ? 'Informe a matrícula' : 'Informe o usuário') : null,
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
@@ -89,11 +92,16 @@ class _TelaLoginEstado extends State<TelaLogin> {
                   ),
                   const SizedBox(height: 16),
                   OutlinedButton.icon(
-                    onPressed: () => Navigator.of(context)
-                        .push(MaterialPageRoute(builder: (_) => const TelaTransmissao())),
+                    onPressed: _entrando
+                        ? null
+                        : () => setState(() {
+                              _motorista = !_motorista;
+                              _erro = null;
+                              _emailCtrl.clear();
+                            }),
                     style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(52)),
-                    icon: const Icon(Icons.gps_fixed),
-                    label: const Text('Sou motorista', style: TextStyle(fontSize: 16)),
+                    icon: Icon(_motorista ? Icons.admin_panel_settings : Icons.directions_bus),
+                    label: Text(_motorista ? 'Sou da administração' : 'Sou motorista', style: const TextStyle(fontSize: 16)),
                   ),
                 ],
               ),

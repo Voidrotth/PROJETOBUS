@@ -22,9 +22,6 @@ class RastreadorGps extends ChangeNotifier {
   static const _maximoNaFila = 20000;
 
   String? _viagemId;
-  // Transmissão sem login ("Sou motorista"): token próprio, renovado quando vence
-  String? _token;
-  Future<String> Function()? _renovarToken;
   StreamSubscription<Position>? _assinatura;
   Timer? _temporizador;
   bool _enviando = false;
@@ -58,9 +55,7 @@ class RastreadorGps extends ChangeNotifier {
     return null;
   }
 
-  Future<void> iniciar(String viagemId, {String? token, Future<String> Function()? renovarToken}) async {
-    _token = token;
-    _renovarToken = renovarToken;
+  Future<void> iniciar(String viagemId) async {
     if (_viagemId == viagemId && rastreando) return;
     await parar(limparFila: false);
 
@@ -148,7 +143,7 @@ class RastreadorGps extends ChangeNotifier {
     try {
       while (_fila.isNotEmpty) {
         final lote = _fila.take(_tamanhoLote).toList();
-        await ServicoApi.enviarPosicoes(viagemId, lote, token: _token);
+        await ServicoApi.enviarPosicoes(viagemId, lote);
         // Novos pontos só entram no fim da fila, então remover do início é seguro
         _fila.removeRange(0, lote.length);
         await _salvarFila();
@@ -157,12 +152,6 @@ class RastreadorGps extends ChangeNotifier {
       conectado = true;
       return true;
     } catch (e) {
-      // Token da transmissão venceu: pega outro (a mesma viagem continua) e reenvia no próximo ciclo
-      if (e is ErroApi && e.status == 401 && _renovarToken != null) {
-        try {
-          _token = await _renovarToken!();
-        } catch (_) {}
-      }
       // O backend recusou o lote (ex.: viagem não existe mais): não adianta reenviar.
       // 401 (sessão expirada) não entra aqui: os pontos seguem válidos após novo login.
       if (e is ErroApi && const [400, 403, 404].contains(e.status)) {

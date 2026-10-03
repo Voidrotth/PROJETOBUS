@@ -5,7 +5,7 @@ require('dotenv').config();
 
 const API = `http://localhost:${process.env.PORT || 3000}/api`;
 const [EMAIL_ADMIN, SENHA_ADMIN, MINUTOS = '5', LINHA = '02'] = process.argv.slice(2);
-const MOTORISTA = { nome: 'Motorista Simulado', email: 'simulador@semob.com', senha: 'simulador123', papel: 'motorista' };
+const MOTORISTA = { nome: 'Motorista Simulado', matricula: '99999', email: 'simulador@semob.com', senha: 'simulador123', papel: 'motorista' };
 const VEICULO = { placa: 'SIM0001', prefixo: '9999', modelo: 'Ônibus simulado' };
 const INTERVALO_MS = 3000;
 
@@ -62,7 +62,8 @@ async function principal() {
   const token = await entrar(MOTORISTA.email, MOTORISTA.senha);
 
   let viagem = await chamar('GET', '/viagens/atual', null, token);
-  if (!viagem) viagem = await chamar('POST', '/viagens/iniciar', { veiculoId: veiculo._id, linha: LINHA, kmInicial: 1000 }, token);
+  // O mesmo que o motorista preenche no app: placa, linha e hodômetro
+  if (!viagem) viagem = await chamar('POST', '/viagens/iniciar', { placa: VEICULO.placa, linha: LINHA, kmInicial: 1000 }, token);
   const viagemId = viagem._id || viagem.viagem?._id;
   console.log(`Viagem ${viagemId} em andamento (ônibus ${VEICULO.prefixo}, linha ${LINHA}). Abra a aba "Ao vivo" do painel.`);
 

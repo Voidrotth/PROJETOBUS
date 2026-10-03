@@ -116,6 +116,7 @@ class _ListaVeiculos extends StatelessWidget {
         subtitle: Text([
           '${veiculo['marca'] ?? ''} ${veiculo['modelo'] ?? ''}'.trim(),
           'Hodômetro ${veiculo['hodometro'] ?? 0} km',
+          if (veiculo['consumoKmPorLitro'] != null) '${veiculo['consumoKmPorLitro']} km/L',
           if (veiculo['emUso'] == true) 'Em viagem',
           if (veiculo['ativo'] == false) 'Inativo',
         ].where((s) => s.isNotEmpty).join(' · ')),
@@ -135,8 +136,9 @@ class _ListaVeiculos extends StatelessWidget {
       'ano': 'Ano',
       'capacidade': 'Capacidade (passageiros)',
       'hodometro': 'Hodômetro (km)',
+      'consumoKmPorLitro': 'Consumo médio (km por litro, ex.: 2,5)',
     };
-    const numericos = {'ano', 'capacidade', 'hodometro'};
+    const numericos = {'ano', 'capacidade', 'hodometro', 'consumoKmPorLitro'};
     return _formulario(
       context,
       titulo: veiculo == null ? 'Novo veículo' : 'Editar veículo',
@@ -163,7 +165,7 @@ class _ListaMotoristas extends StatelessWidget {
         leading: Icon(Icons.badge, color: motorista['ativo'] == false ? Colors.grey : Colors.blue),
         title: Text(motorista['nome'] ?? ''),
         subtitle: Text([
-          motorista['email'] ?? '',
+          if ((motorista['matricula'] ?? '').isNotEmpty) 'Matrícula ${motorista['matricula']}',
           if ((motorista['cnh'] ?? '').isNotEmpty) 'CNH ${motorista['cnh']}',
           if (motorista['ativo'] == false) 'Inativo',
         ].join(' · ')),
@@ -180,17 +182,19 @@ class _ListaMotoristas extends StatelessWidget {
       titulo: motorista == null ? 'Novo motorista' : 'Editar motorista',
       campos: {
         'nome': 'Nome',
-        'email': 'E-mail (login)',
-        'senha': motorista == null ? 'Senha' : 'Nova senha (deixe vazio para manter)',
+        'matricula': 'Matrícula (login; a mesma dos relatórios)',
+        'senha': motorista == null ? 'Senha (mínimo 6)' : 'Nova senha (deixe vazio para manter)',
+        'email': 'E-mail (opcional)',
         'telefone': 'Telefone',
         'cnh': 'CNH',
       },
-      obrigatorios: {'nome', 'email', if (motorista == null) 'senha'},
+      obrigatorios: {'nome', 'matricula', if (motorista == null) 'senha'},
       senhas: const {'senha'},
       valores: motorista,
       ativo: motorista?['ativo'] ?? true,
       salvar: (dados) {
         if ((dados['senha'] ?? '').isEmpty) dados.remove('senha');
+        if ((dados['email'] ?? '').isEmpty) dados.remove('email'); // sem e-mail: entra pela matrícula
         return ServicoApi.salvarUsuario({...dados, 'papel': 'motorista'}, id: motorista?['_id']);
       },
     );
@@ -242,7 +246,7 @@ Future<bool> _formulario(
                         validator: (v) {
                           final texto = v?.trim() ?? '';
                           if (obrigatorios.contains(campo) && texto.isEmpty) return 'Obrigatório';
-                          if (numericos.contains(campo) && texto.isNotEmpty && num.tryParse(texto) == null) {
+                          if (numericos.contains(campo) && texto.isNotEmpty && num.tryParse(texto.replaceAll(',', '.')) == null) {
                             return 'Número inválido';
                           }
                           return null;
@@ -274,7 +278,7 @@ Future<bool> _formulario(
                       if (!numericos.contains(campo)) {
                         dados[campo] = texto;
                       } else if (texto.isNotEmpty) {
-                        dados[campo] = num.parse(texto);
+                        dados[campo] = num.parse(texto.replaceAll(',', '.'));
                       }
                     });
                     try {

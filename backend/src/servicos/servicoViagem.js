@@ -42,28 +42,48 @@ function resumoViagem(viagem) {
   };
 }
 
-async function iniciarViagem(motoristaId, { veiculoId, linha, kmInicial }) {
-  if (!veiculoId || !String(linha ?? '').trim()) {
-    throw new ErroViagem('Informe o veículo e a linha');
-  }
+// O motorista informa só o que os relatórios não trazem na hora: placa do ônibus, linha e hodômetro
+// (no fim ele informa o hodômetro final e o sistema calcula os km rodados). Atividade, sentido,
+// atendimento etc. vêm depois pelos relatórios do Smart Report.
+const PLACA = /^[A-Z]{3}[0-9][A-Z0-9][0-9]{2}$/; // ABC1234 ou Mercosul ABC1D23
+
+function validarDadosDaViagem({ placa, veiculoId, linha, kmInicial }) {
+  const faltando = [];
+  const placaLimpa = String(placa ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (!veiculoId && !PLACA.test(placaLimpa)) faltando.push('placa (ex.: ABC1234 ou ABC1D23)');
+  const linhaInformada = String(linha ?? '').trim();
+  const linhaLimpa = linhaInformada && linhaInformada.padStart(2, '0'); // "7" -> "07"
+  if (!/^\d{2}$/.test(linhaLimpa)) faltando.push('linha');
+  if (kmInicial === undefined || kmInicial === null || kmInicial === '' || !(Number(kmInicial) >= 0)) faltando.push('km do hodômetro');
+  if (faltando.length) throw new ErroViagem(`Informe: ${faltando.join(', ')}`);
+  return { placa: placaLimpa, linha: linhaLimpa };
+}
+
+async function iniciarViagem(motoristaId, corpo) {
+  const { veiculoId, kmInicial } = corpo;
+  const { placa, linha } = validarDadosDaViagem(corpo);
 
   const aberta = await Viagem.findOne({ motorista: motoristaId, status: 'em_andamento' });
   if (aberta) {
     throw new ErroViagem('Você já tem uma viagem em andamento', 409, { viagem: aberta });
   }
 
-  const veiculo = await Veiculo.findOne({ _id: veiculoId, ativo: true });
+  // Placa digitada pelo motorista: ônibus que ainda não está cadastrado entra sozinho
+  const veiculo = veiculoId
+    ? await Veiculo.findOne({ _id: veiculoId, ativo: true })
+    : await Veiculo.findOneAndUpdate({ placa }, { $setOnInsert: { placa } }, { upsert: true, new: true });
   if (!veiculo) throw new ErroViagem('Veículo não encontrado', 404);
+  if (veiculo.ativo === false) throw new ErroViagem('Este ônibus está inativo no cadastro', 403);
 
   const emUso = await Viagem.exists({ veiculo: veiculo._id, status: 'em_andamento' });
-  if (emUso) throw new ErroViagem('Este veículo já está em uma viagem em andamento', 409);
+  if (emUso) throw new ErroViagem('Este ônibus já está em uma viagem em andamento', 409);
 
   let viagem;
   try {
     viagem = await Viagem.create({
       motorista: motoristaId,
       veiculo: veiculo._id,
-      linha: String(linha).trim(),
+      linha,
       kmInicial: numero(kmInicial, veiculo.hodometro || 0)
     });
   } catch (erro) {
@@ -272,11 +292,80 @@ async function trajetoDaViagem(viagemId) {
   }));
 }
 
+/**
+ * Km rodados e combustível por ônibus no período (datas AAAA-MM-DD, dia de São Paulo).
+ * Viagem encerrada: km do hodômetro (final − inicial, informado pelo motorista).
+ * Viagem em andamento: km do GPS até agora (o hodômetro final só vem no encerramento).
+ * Litros: estimados pelo consumo de referência do ônibus (km/L) até chegarem os relatórios de abastecimento.
+ */
+async function kmPorVeiculo(inicio, fim) {
+  // ponytail: fuso fixo −03:00 (sem horário de verão desde 2019); usar FUSO_OPERACAO se voltar a existir
+  const de = new Date(`${inicio}T00:00:00-03:00`);
+  const ate = new Date(`${fim}T23:59:59.999-03:00`);
+  const viagens = await Viagem.find({ inicio: { $gte: de, $lte: ate } })
+    .populate('veiculo', 'placa prefixo consumoKmPorLitro')
+    .select('veiculo status kmInicial kmFinal')
+    .lean();
+
+  const porVeiculo = {};
+  for (const v of viagens) {
+    if (!v.veiculo) continue;
+    const item = (porVeiculo[v.veiculo._id] ??= {
+      prefixo: v.veiculo.prefixo || '',
+      placa: v.veiculo.placa,
+      consumoKmPorLitro: v.veiculo.consumoKmPorLitro || null,
+      viagens: 0,
+      emAndamento: 0,
+      kmHodometro: 0,
+      kmEmAndamento: 0
+    });
+    item.viagens++;
+    if (v.status === 'encerrada') {
+      item.kmHodometro += Math.max(0, (v.kmFinal || 0) - (v.kmInicial || 0));
+    } else {
+      item.emAndamento++;
+      item.kmEmAndamento += await calcularKmGps(v._id);
+    }
+  }
+
+  const arred = n => Math.round(n * 10) / 10;
+  const veiculos = Object.values(porVeiculo).map(i => {
+    const kmTotal = arred(i.kmHodometro + i.kmEmAndamento);
+    return {
+      ...i,
+      kmHodometro: arred(i.kmHodometro),
+      kmEmAndamento: arred(i.kmEmAndamento),
+      kmTotal,
+      litrosEstimados: i.consumoKmPorLitro ? arred(kmTotal / i.consumoKmPorLitro) : null
+    };
+  }).sort((a, b) => b.kmTotal - a.kmTotal);
+
+  const soma = campo => arred(veiculos.reduce((s, v) => s + (v[campo] || 0), 0));
+  const comConsumo = veiculos.filter(v => v.litrosEstimados != null);
+  return {
+    inicio,
+    fim,
+    veiculos,
+    totais: {
+      viagens: veiculos.reduce((s, v) => s + v.viagens, 0),
+      emAndamento: veiculos.reduce((s, v) => s + v.emAndamento, 0),
+      kmTotal: soma('kmTotal'),
+      litrosEstimados: comConsumo.length ? soma('litrosEstimados') : null,
+      // Média ponderada só entre os ônibus que têm consumo de referência
+      kmPorLitro: comConsumo.length
+        ? arred(comConsumo.reduce((s, v) => s + v.kmTotal, 0) / comConsumo.reduce((s, v) => s + v.litrosEstimados, 0))
+        : null,
+      veiculosSemConsumo: veiculos.length - comConsumo.length
+    }
+  };
+}
+
 module.exports = {
   ErroViagem,
   resumoViagem,
   iniciarViagem,
   registrarPosicoes,
   encerrarViagem,
-  trajetoDaViagem
+  trajetoDaViagem,
+  kmPorVeiculo
 };

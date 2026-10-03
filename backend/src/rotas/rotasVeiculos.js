@@ -5,7 +5,7 @@ const Viagem = require('../modelos/Viagem');
 const { autenticar, exigirPapel } = require('../middlewares/autenticacao');
 const { rota, ErroHttp } = require('../middlewares/tratarErro');
 
-const CAMPOS_EDITAVEIS = ['placa', 'prefixo', 'marca', 'modelo', 'ano', 'capacidade', 'hodometro', 'ativo'];
+const CAMPOS_EDITAVEIS = ['placa', 'prefixo', 'marca', 'modelo', 'ano', 'capacidade', 'hodometro', 'consumoKmPorLitro', 'ativo'];
 
 roteador.use(autenticar);
 

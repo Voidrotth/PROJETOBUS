@@ -11,8 +11,12 @@ roteador.post('/login', rota(async (req, res) => {
   const { email, senha } = req.body;
   if (!email || !senha) throw new ErroHttp(400, 'Informe usuário e senha');
 
-  const usuario = await Usuario.findOne({ email: String(email).toLowerCase().trim(), ativo: true })
-    .select('+senhaHash');
+  // "email" é o campo de usuário da tela: aceita o e-mail/usuário ou a matrícula do motorista
+  const usuarioInformado = String(email).trim();
+  const usuario = await Usuario.findOne({
+    $or: [{ email: usuarioInformado.toLowerCase() }, { matricula: usuarioInformado }],
+    ativo: true
+  }).select('+senhaHash');
   if (!usuario || !(await bcrypt.compare(String(senha), usuario.senhaHash))) {
     throw new ErroHttp(401, 'Usuário ou senha inválidos');
   }

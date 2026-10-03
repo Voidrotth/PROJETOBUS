@@ -1,0 +1,14 @@
+# MongoDB (Atlas - cluster SEMOB)
+
+MONGODB_URI=mongodb+srv://SEMOB:SEMOB10@semob.tua8uo7.mongodb.net/projetobus?retryWrites=true&w=majority&appName=SEMOB
+
+# IA (OpenRouter - https://openrouter.ai)
+OPENROUTER_API_KEY=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
+# Modelo usado (lista em https://openrouter.ai/models)
+IA_MODELO=nvidia/nemotron-3-super-120b-a12b:free
+
+# Servidor
+PORT=3100
+
+# Login (JWT)
+JWT_SEGREDO=347c1dcf5f671d24ccbf24b62a9b4681a5663db4e959fd14c559919dab68245330cc91618ef3dd810556492f42d3aba3

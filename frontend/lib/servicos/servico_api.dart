@@ -1,8 +1,159 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:http/http.dart' as http;
+import 'sessao.dart';
+
+/// Erro devolvido pelo backend, com a mensagem pronta para mostrar na tela.
+class ErroApi implements Exception {
+  final String mensagem;
+  final int status;
+
+  ErroApi(this.mensagem, this.status);
+
+  @override
+  String toString() => mensagem;
+}
 
 class ServicoApi {
-  static const String urlBase = 'http://localhost:3000/api';
+  // No celular "localhost" é o próprio aparelho: rode com
+  // --dart-define=API_URL=http://IP_DO_COMPUTADOR:3000/api
+  static const String urlBase = String.fromEnvironment('API_URL', defaultValue: 'http://localhost:3000/api');
+
+  /// Endereço do Socket.IO (mesmo servidor, sem o /api)
+  static String get urlServidor => urlBase.replaceFirst(RegExp(r'/api/?$'), '');
+
+  // ==================== REQUISIÇÕES AUTENTICADAS ====================
+
+  static Future<dynamic> _requisitar(String metodo, String caminho,
+      {Object? corpo, Duration tempoLimite = const Duration(seconds: 20)}) async {
+    final requisicao = http.Request(metodo, Uri.parse('$urlBase$caminho'))
+      ..headers['Content-Type'] = 'application/json';
+    if (Sessao.token != null) requisicao.headers['Authorization'] = 'Bearer ${Sessao.token}';
+    if (corpo != null) requisicao.body = jsonEncode(corpo);
+
+    final resposta = await http.Response.fromStream(await requisicao.send().timeout(tempoLimite));
+
+    if (resposta.statusCode >= 200 && resposta.statusCode < 300) {
+      return resposta.body.isEmpty ? null : jsonDecode(resposta.body);
+    }
+    if (resposta.statusCode == 401 && Sessao.token != null) {
+      await Sessao.sair(expirou: true);
+    }
+    throw ErroApi(_mensagemDeErro(resposta, 'Erro ${resposta.statusCode}'), resposta.statusCode);
+  }
+
+  static List<Map<String, dynamic>> _lista(dynamic dados) =>
+      (dados as List).cast<Map<String, dynamic>>();
+
+  // ==================== LOGIN ====================
+
+  static Future<void> entrar(String email, String senha) async {
+    final dados = await _requisitar('POST', '/auth/login', corpo: {'email': email, 'senha': senha});
+    await Sessao.entrar(dados['token'], Map<String, dynamic>.from(dados['usuario']));
+  }
+
+  // ==================== FROTA (VEÍCULOS E MOTORISTAS) ====================
+
+  static Future<List<Map<String, dynamic>>> listarVeiculos() async =>
+      _lista(await _requisitar('GET', '/veiculos'));
+
+  static Future<Map<String, dynamic>> salvarVeiculo(Map<String, dynamic> dados, {String? id}) async =>
+      await _requisitar(id == null ? 'POST' : 'PUT', id == null ? '/veiculos' : '/veiculos/$id', corpo: dados);
+
+  static Future<List<Map<String, dynamic>>> listarMotoristas() async =>
+      _lista(await _requisitar('GET', '/usuarios?papel=motorista'));
+
+  static Future<Map<String, dynamic>> salvarUsuario(Map<String, dynamic> dados, {String? id}) async =>
+      await _requisitar(id == null ? 'POST' : 'PUT', id == null ? '/usuarios' : '/usuarios/$id', corpo: dados);
+
+  static Future<Map<String, dynamic>> statusFleetbase() async => await _requisitar('GET', '/fleetbase/status');
+
+  // ==================== VIAGENS ====================
+
+  static Future<Map<String, dynamic>> iniciarViagem(String veiculoId, String linha, double? kmInicial) async =>
+      await _requisitar('POST', '/viagens/iniciar', corpo: {
+        'veiculoId': veiculoId,
+        'linha': linha,
+        'kmInicial': ?kmInicial,
+      });
+
+  static Future<Map<String, dynamic>?> viagemAtual() async => await _requisitar('GET', '/viagens/atual');
+
+  static Future<Map<String, dynamic>> encerrarViagem(String viagemId, Map<String, dynamic> fechamento) async =>
+      await _requisitar('POST', '/viagens/$viagemId/encerrar', corpo: fechamento);
+
+  static Future<void> enviarPosicoes(String viagemId, List<Map<String, dynamic>> posicoes) async {
+    await _requisitar('POST', '/localizacao',
+        corpo: {'viagemId': viagemId, 'posicoes': posicoes}, tempoLimite: const Duration(seconds: 15));
+  }
+
+  static Future<List<Map<String, dynamic>>> viagensAoVivo() async =>
+      _lista(await _requisitar('GET', '/viagens/ao-vivo'));
+
+  static Future<List<Map<String, dynamic>>> trajeto(String viagemId) async =>
+      _lista(await _requisitar('GET', '/viagens/$viagemId/trajeto'));
+
+  // ==================== VERIFICAÇÃO (RELATÓRIOS DO VERIFICADOR) ====================
+
+  /// Filtros: inicio e fim (AAAA-MM-DD) e tipos (util, nao_util, feriado separados por vírgula)
+  static Future<Map<String, dynamic>> buscarIndicadores(Map<String, String> filtros) async =>
+      await _requisitar('GET', Uri(path: '/indicadores', queryParameters: filtros).toString());
+
+  /// Operação a partir das viagens: por linha, hora, veículo, turnos e não cumpridas.
+  /// Mesmos filtros da Verificação, mais linha (ex.: 01)
+  static Future<Map<String, dynamic>> buscarOperacao(Map<String, String> filtros) async =>
+      await _requisitar('GET', Uri(path: '/indicadores/operacao', queryParameters: filtros).toString());
+
+  /// Pesquisa de viagens: filtros da operação mais prefixo, sentido (ida|volta), hora e pagina
+  static Future<Map<String, dynamic>> pesquisarViagens(Map<String, String> filtros) async =>
+      await _requisitar('GET', Uri(path: '/indicadores/viagens', queryParameters: filtros).toString());
+
+  static Future<Uint8List> _baixar(String caminho, Map<String, String> filtros) async {
+    final resposta = await http.get(
+      Uri.parse('$urlBase${Uri(path: caminho, queryParameters: filtros)}'),
+      headers: {'Authorization': 'Bearer ${Sessao.token}'},
+    );
+    if (resposta.statusCode != 200) {
+      throw ErroApi(_mensagemDeErro(resposta, 'Erro ao exportar'), resposta.statusCode);
+    }
+    return resposta.bodyBytes;
+  }
+
+  /// Mesmos filtros da consulta, mais formato (csv|xlsx) e escopo (tudo|quilometragem)
+  static Future<Uint8List> exportarIndicadores(Map<String, String> filtros) =>
+      _baixar('/indicadores/exportar', filtros);
+
+  /// Página HTML pronta para imprimir ou salvar em PDF
+  static Future<Uint8List> relatorioQuilometragem(Map<String, String> filtros) =>
+      _baixar('/indicadores/relatorio-quilometragem', filtros);
+
+  static Future<void> salvarFeriado(String data, String nome) async =>
+      await _requisitar('PUT', '/indicadores/feriados/$data', corpo: {'nome': nome});
+
+  static Future<void> excluirFeriado(String data) async =>
+      await _requisitar('DELETE', '/indicadores/feriados/$data');
+
+  // ==================== ENVIO DE DADOS ====================
+
+  /// Guarda um arquivo (.html do Smart Report ou .csv) no servidor; [envio] agrupa os arquivos mandados juntos
+  static Future<void> enviarArquivo(String envio, String nome, Uint8List bytes) async {
+    final resposta = await http.post(
+      Uri.parse('$urlBase${Uri(path: '/indicadores/arquivos', queryParameters: {'envio': envio, 'nome': nome})}'),
+      headers: {'Authorization': 'Bearer ${Sessao.token}', 'Content-Type': 'application/octet-stream'},
+      body: bytes,
+    );
+    if (resposta.statusCode != 201) {
+      throw ErroApi('$nome: ${_mensagemDeErro(resposta, 'erro ao enviar')}', resposta.statusCode);
+    }
+  }
+
+  /// Lê tudo que já foi enviado e atualiza o painel (a leitura dos arquivos grandes leva alguns segundos)
+  static Future<Map<String, dynamic>> processarDados() async =>
+      await _requisitar('POST', '/indicadores/processar', tempoLimite: const Duration(minutes: 3));
+
+  /// Arquivos lidos e conferências da última leitura (nulo se nada foi processado ainda)
+  static Future<Map<String, dynamic>?> ultimaImportacaoDados() async =>
+      await _requisitar('GET', '/indicadores/importacao');
 
   // ==================== PAINEL ====================
 
@@ -14,53 +165,6 @@ class ServicoApi {
     throw Exception('Erro ao carregar painel');
   }
 
-  // ==================== IMPORTAÇÕES ====================
-
-  static Future<List<Map<String, dynamic>>> buscarImportacoes({String? status}) async {
-    String url = '$urlBase/importacoes';
-    if (status != null && status.isNotEmpty) {
-      url += '?status=$status';
-    }
-    final resposta = await http.get(Uri.parse(url));
-    if (resposta.statusCode == 200) {
-      final List<dynamic> dados = jsonDecode(resposta.body);
-      return dados.cast<Map<String, dynamic>>();
-    }
-    throw Exception('Erro ao carregar importações');
-  }
-
-  static Future<Map<String, dynamic>> buscarImportacao(String id) async {
-    final resposta = await http.get(Uri.parse('$urlBase/importacoes/$id'));
-    if (resposta.statusCode == 200) {
-      return jsonDecode(resposta.body);
-    }
-    throw Exception('Erro ao carregar importação');
-  }
-
-  static Future<Map<String, dynamic>> atualizarImportacao(
-      String id, Map<String, dynamic> dadosExtraidos) async {
-    final resposta = await http.put(
-      Uri.parse('$urlBase/importacoes/$id'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'dadosExtraidos': dadosExtraidos}),
-    );
-    if (resposta.statusCode == 200) {
-      return jsonDecode(resposta.body);
-    }
-    throw Exception('Erro ao atualizar importação');
-  }
-
-  static Future<Map<String, dynamic>> confirmarImportacao(String id) async {
-    final resposta = await http.patch(
-      Uri.parse('$urlBase/importacoes/$id/confirmar'),
-      headers: {'Content-Type': 'application/json'},
-    );
-    if (resposta.statusCode == 200) {
-      return jsonDecode(resposta.body);
-    }
-    throw Exception(_mensagemDeErro(resposta, 'Erro ao confirmar importação'));
-  }
-
   // Usa a mensagem de erro enviada pelo backend ({"erro": "..."}), se houver
   static String _mensagemDeErro(http.Response resposta, String padrao) {
     try {
@@ -68,16 +172,6 @@ class ServicoApi {
       if (corpo is Map && corpo['erro'] is String) return corpo['erro'];
     } catch (_) {}
     return padrao;
-  }
-
-  static Future<void> rejeitarImportacao(String id) async {
-    final resposta = await http.patch(
-      Uri.parse('$urlBase/importacoes/$id/rejeitar'),
-      headers: {'Content-Type': 'application/json'},
-    );
-    if (resposta.statusCode != 200) {
-      throw Exception('Erro ao rejeitar importação');
-    }
   }
 
   // ==================== OPERAÇÕES ====================
@@ -101,24 +195,5 @@ class ServicoApi {
       return dados.cast<Map<String, dynamic>>();
     }
     throw Exception('Erro ao carregar operações');
-  }
-
-  // ==================== WEBHOOK (TESTE) ====================
-
-  static Future<Map<String, dynamic>> enviarEmailWebhook(
-      String remetente, String assunto, String texto) async {
-    final resposta = await http.post(
-      Uri.parse('$urlBase/email/webhook'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'from': remetente,
-        'subject': assunto,
-        'text': texto,
-      }),
-    );
-    if (resposta.statusCode == 201) {
-      return jsonDecode(resposta.body);
-    }
-    throw Exception('Erro ao enviar e-mail');
   }
 }

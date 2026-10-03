@@ -1,6 +1,8 @@
 const express = require('express');
 const roteador = express.Router();
 const Operacao = require('../modelos/Operacao');
+const Pagamento = require('../modelos/Pagamento');
+const Viagem = require('../modelos/Viagem');
 
 // GET /api/painel/resumo
 // Retorna dados agregados para o painel
@@ -47,6 +49,21 @@ roteador.get('/resumo', async (req, res) => {
       .sort({ createdAt: -1 })
       .limit(10);
 
+    // Arrecadação lançada pelos motoristas no encerramento das viagens
+    const [arrecadacao] = await Pagamento.aggregate([
+      {
+        $group: {
+          _id: null,
+          total: { $sum: '$total' },
+          dinheiro: { $sum: '$dinheiro' },
+          cartao: { $sum: '$cartao' },
+          pix: { $sum: '$pix' },
+          gratuidades: { $sum: '$gratuidades' }
+        }
+      }
+    ]);
+    const viagensEmAndamento = await Viagem.countDocuments({ status: 'em_andamento' });
+
     const resumo = agregacao[0] || {
       totalPassageiros: 0,
       totalViagens: 0,
@@ -59,7 +76,15 @@ roteador.get('/resumo', async (req, res) => {
       totalViagens: resumo.totalViagens,
       totalKm: resumo.totalKm,
       operacoesPorLinha,
-      ultimasOcorrencias
+      ultimasOcorrencias,
+      arrecadacao: {
+        total: arrecadacao?.total || 0,
+        dinheiro: arrecadacao?.dinheiro || 0,
+        cartao: arrecadacao?.cartao || 0,
+        pix: arrecadacao?.pix || 0,
+        gratuidades: arrecadacao?.gratuidades || 0
+      },
+      viagensEmAndamento
     });
   } catch (erro) {
     console.error('Erro ao gerar resumo:', erro);

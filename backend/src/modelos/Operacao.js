@@ -51,12 +51,17 @@ const esquemaOperacao = new mongoose.Schema({
   },
   origem: {
     type: String,
-    enum: ['email', 'manual'],
+    enum: ['email', 'manual', 'app'],
     required: true
   },
   importacaoId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Importacao',
+    default: null
+  },
+  viagemId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Viagem',
     default: null
   }
 }, { timestamps: true });

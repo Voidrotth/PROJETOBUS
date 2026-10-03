@@ -75,11 +75,6 @@ const esquemaViagem = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Operacao',
     default: null
-  },
-  // true quando o início/encerramento ainda não chegou ao Fleetbase
-  fleetbasePendente: {
-    type: Boolean,
-    default: false
   }
 }, { timestamps: true });
 

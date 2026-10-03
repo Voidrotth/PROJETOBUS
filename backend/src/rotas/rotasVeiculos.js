@@ -2,7 +2,6 @@ const express = require('express');
 const roteador = express.Router();
 const Veiculo = require('../modelos/Veiculo');
 const Viagem = require('../modelos/Viagem');
-const FleetbaseService = require('../fleetbase/FleetbaseService');
 const { autenticar, exigirPapel } = require('../middlewares/autenticacao');
 const { rota, ErroHttp } = require('../middlewares/tratarErro');
 
@@ -34,7 +33,6 @@ roteador.get('/', rota(async (req, res) => {
 roteador.post('/', exigirPapel('admin'), rota(async (req, res) => {
   if (!req.body.placa) throw new ErroHttp(400, 'Campo obrigatório: placa');
   const veiculo = await Veiculo.create(camposDoCorpo(req.body));
-  FleetbaseService.sincronizarVeiculo(veiculo);
   res.status(201).json(veiculo);
 }));
 
@@ -45,7 +43,6 @@ roteador.put('/:id', exigirPapel('admin'), rota(async (req, res) => {
     runValidators: true
   });
   if (!veiculo) throw new ErroHttp(404, 'Veículo não encontrado');
-  FleetbaseService.sincronizarVeiculo(veiculo);
   res.json(veiculo);
 }));
 

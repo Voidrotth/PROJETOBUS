@@ -9,12 +9,12 @@ const { rota, ErroHttp } = require('../middlewares/tratarErro');
 // Recebe { email, senha } e devolve { token, usuario }
 roteador.post('/login', rota(async (req, res) => {
   const { email, senha } = req.body;
-  if (!email || !senha) throw new ErroHttp(400, 'Informe e-mail e senha');
+  if (!email || !senha) throw new ErroHttp(400, 'Informe usuário e senha');
 
   const usuario = await Usuario.findOne({ email: String(email).toLowerCase().trim(), ativo: true })
     .select('+senhaHash');
   if (!usuario || !(await bcrypt.compare(String(senha), usuario.senhaHash))) {
-    throw new ErroHttp(401, 'E-mail ou senha inválidos');
+    throw new ErroHttp(401, 'Usuário ou senha inválidos');
   }
 
   const dados = usuario.toObject();

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../servicos/servico_api.dart';
+import 'motorista/tela_transmissao.dart';
 
 class TelaLogin extends StatefulWidget {
   final VoidCallback aoEntrar;
@@ -60,10 +61,10 @@ class _TelaLoginEstado extends State<TelaLogin> {
                   const SizedBox(height: 32),
                   TextFormField(
                     controller: _emailCtrl,
-                    decoration: const InputDecoration(labelText: 'E-mail', border: OutlineInputBorder()),
-                    keyboardType: TextInputType.emailAddress,
-                    autofillHints: const [AutofillHints.email],
-                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Informe o e-mail' : null,
+                    decoration: const InputDecoration(labelText: 'Usuário', border: OutlineInputBorder()),
+                    keyboardType: TextInputType.text,
+                    autofillHints: const [AutofillHints.username],
+                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Informe o usuário' : null,
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
@@ -85,6 +86,14 @@ class _TelaLoginEstado extends State<TelaLogin> {
                         ? const SizedBox(
                             width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                         : const Text('Entrar', style: TextStyle(fontSize: 16)),
+                  ),
+                  const SizedBox(height: 16),
+                  OutlinedButton.icon(
+                    onPressed: () => Navigator.of(context)
+                        .push(MaterialPageRoute(builder: (_) => const TelaTransmissao())),
+                    style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(52)),
+                    icon: const Icon(Icons.gps_fixed),
+                    label: const Text('Sou motorista', style: TextStyle(fontSize: 16)),
                   ),
                 ],
               ),

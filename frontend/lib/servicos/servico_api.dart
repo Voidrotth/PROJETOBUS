@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:typed_data';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
 import 'sessao.dart';
 
@@ -15,9 +16,13 @@ class ErroApi implements Exception {
 }
 
 class ServicoApi {
-  // No celular "localhost" é o próprio aparelho: rode com
+  // No navegador, o painel é servido pelo próprio backend: a API fica no mesmo endereço (funciona
+  // também por um link https, ex.: túnel do cloudflared). Fora disso, informe o endereço com
   // --dart-define=API_URL=http://IP_DO_COMPUTADOR:3000/api
-  static const String urlBase = String.fromEnvironment('API_URL', defaultValue: 'http://localhost:3000/api');
+  static const String _apiInformada = String.fromEnvironment('API_URL');
+  static final String urlBase = _apiInformada.isNotEmpty
+      ? _apiInformada
+      : (kIsWeb ? '${Uri.base.origin}/api' : 'http://localhost:3000/api');
 
   /// Endereço do Socket.IO (mesmo servidor, sem o /api)
   static String get urlServidor => urlBase.replaceFirst(RegExp(r'/api/?$'), '');
@@ -25,10 +30,12 @@ class ServicoApi {
   // ==================== REQUISIÇÕES AUTENTICADAS ====================
 
   static Future<dynamic> _requisitar(String metodo, String caminho,
-      {Object? corpo, Duration tempoLimite = const Duration(seconds: 20)}) async {
+      {Object? corpo, Duration tempoLimite = const Duration(seconds: 20), String? token}) async {
+    // token explícito: transmissão do motorista sem login ("Sou motorista")
+    final chave = token ?? Sessao.token;
     final requisicao = http.Request(metodo, Uri.parse('$urlBase$caminho'))
       ..headers['Content-Type'] = 'application/json';
-    if (Sessao.token != null) requisicao.headers['Authorization'] = 'Bearer ${Sessao.token}';
+    if (chave != null) requisicao.headers['Authorization'] = 'Bearer $chave';
     if (corpo != null) requisicao.body = jsonEncode(corpo);
 
     final resposta = await http.Response.fromStream(await requisicao.send().timeout(tempoLimite));
@@ -36,7 +43,7 @@ class ServicoApi {
     if (resposta.statusCode >= 200 && resposta.statusCode < 300) {
       return resposta.body.isEmpty ? null : jsonDecode(resposta.body);
     }
-    if (resposta.statusCode == 401 && Sessao.token != null) {
+    if (resposta.statusCode == 401 && token == null && Sessao.token != null) {
       await Sessao.sair(expirou: true);
     }
     throw ErroApi(_mensagemDeErro(resposta, 'Erro ${resposta.statusCode}'), resposta.statusCode);
@@ -66,7 +73,12 @@ class ServicoApi {
   static Future<Map<String, dynamic>> salvarUsuario(Map<String, dynamic> dados, {String? id}) async =>
       await _requisitar(id == null ? 'POST' : 'PUT', id == null ? '/usuarios' : '/usuarios/$id', corpo: dados);
 
-  static Future<Map<String, dynamic>> statusFleetbase() async => await _requisitar('GET', '/fleetbase/status');
+
+  // ==================== TRANSMISSÃO (SOU MOTORISTA) ====================
+
+  /// Abre (ou retoma) a viagem só com nome e placa. Devolve token, viagemId, motorista e veículo.
+  static Future<Map<String, dynamic>> iniciarTransmissao(String nome, String placa) async =>
+      await _requisitar('POST', '/transmissao/iniciar', corpo: {'nome': nome, 'placa': placa});
 
   // ==================== VIAGENS ====================
 
@@ -79,12 +91,12 @@ class ServicoApi {
 
   static Future<Map<String, dynamic>?> viagemAtual() async => await _requisitar('GET', '/viagens/atual');
 
-  static Future<Map<String, dynamic>> encerrarViagem(String viagemId, Map<String, dynamic> fechamento) async =>
-      await _requisitar('POST', '/viagens/$viagemId/encerrar', corpo: fechamento);
+  static Future<Map<String, dynamic>> encerrarViagem(String viagemId, Map<String, dynamic> fechamento, {String? token}) async =>
+      await _requisitar('POST', '/viagens/$viagemId/encerrar', corpo: fechamento, token: token);
 
-  static Future<void> enviarPosicoes(String viagemId, List<Map<String, dynamic>> posicoes) async {
+  static Future<void> enviarPosicoes(String viagemId, List<Map<String, dynamic>> posicoes, {String? token}) async {
     await _requisitar('POST', '/localizacao',
-        corpo: {'viagemId': viagemId, 'posicoes': posicoes}, tempoLimite: const Duration(seconds: 15));
+        corpo: {'viagemId': viagemId, 'posicoes': posicoes}, tempoLimite: const Duration(seconds: 15), token: token);
   }
 
   static Future<List<Map<String, dynamic>>> viagensAoVivo() async =>

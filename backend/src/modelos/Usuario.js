@@ -34,15 +34,6 @@ const esquemaUsuario = new mongoose.Schema({
   ativo: {
     type: Boolean,
     default: true
-  },
-  // Relação com o motorista no Fleetbase (só para papel "motorista")
-  fleetbaseId: {
-    type: String,
-    default: null
-  },
-  fleetbasePendente: {
-    type: Boolean,
-    default: false
   }
 }, { timestamps: true });
 

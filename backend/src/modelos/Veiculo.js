@@ -35,15 +35,6 @@ const esquemaVeiculo = new mongoose.Schema({
   ativo: {
     type: Boolean,
     default: true
-  },
-  // Relação com o veículo no Fleetbase
-  fleetbaseId: {
-    type: String,
-    default: null
-  },
-  fleetbasePendente: {
-    type: Boolean,
-    default: false
   }
 }, { timestamps: true });
 

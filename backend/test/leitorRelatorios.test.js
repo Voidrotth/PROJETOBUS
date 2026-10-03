@@ -58,7 +58,9 @@ test('resposta da IA errada é recusada, nunca adivinhada', async () => {
 
 test('todos os arquivos de dados/ são reconhecidos pela assinatura', { skip: !fs.existsSync(DADOS) && 'pasta dados/ ausente' }, async () => {
   const contagem = {};
-  for (const arquivo of fs.readdirSync(DADOS, { recursive: true }).filter(a => /\.html$/i.test(a))) {
+  // dados/enviados/ guarda cópias dos uploads do painel (a importação descarta as repetidas)
+  const relatorios = fs.readdirSync(DADOS, { recursive: true }).filter(a => /\.html$/i.test(a) && !/^enviados[\\/]/.test(a));
+  for (const arquivo of relatorios) {
     const r = await lerHtml(arquivo, fs.readFileSync(path.join(DADOS, arquivo)), semIA);
     for (const rel of r.relatorios) contagem[rel.tipo] = (contagem[rel.tipo] || 0) + rel.registros.length;
   }

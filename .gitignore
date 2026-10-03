@@ -1,9 +1,6 @@
 # Material de consulta (repositório das aulas, não faz parte do projeto)
 aquivosparaconsultar/
 
-# Fleetbase (clone local do projeto oficial, opcional: ver README)
-/fleetbase/
-
 # Relatórios reais do Smart Report (dados operacionais, ficam só na máquina)
 /dados/
 

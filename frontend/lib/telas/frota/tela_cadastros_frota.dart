@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../servicos/servico_api.dart';
 
-/// Cadastro de veículos e motoristas (o backend sincroniza com o Fleetbase sozinho).
+/// Cadastro de veículos e motoristas.
 class TelaCadastrosFrota extends StatelessWidget {
   const TelaCadastrosFrota({super.key});
 
@@ -20,16 +20,6 @@ class TelaCadastrosFrota extends StatelessWidget {
       ),
     );
   }
-}
-
-/// Ícone de sincronização com o Fleetbase
-Widget _iconeSincronizado(Map<String, dynamic> item) {
-  final sincronizado = item['fleetbaseId'] != null && item['fleetbasePendente'] != true;
-  return Tooltip(
-    message: sincronizado ? 'Sincronizado com o Fleetbase' : 'Aguardando sincronização com o Fleetbase',
-    child: Icon(sincronizado ? Icons.cloud_done : Icons.cloud_upload_outlined,
-        color: sincronizado ? Colors.green : Colors.grey),
-  );
 }
 
 /// Lista genérica com carregamento, erro e botão de adicionar
@@ -129,7 +119,6 @@ class _ListaVeiculos extends StatelessWidget {
           if (veiculo['emUso'] == true) 'Em viagem',
           if (veiculo['ativo'] == false) 'Inativo',
         ].where((s) => s.isNotEmpty).join(' · ')),
-        trailing: _iconeSincronizado(veiculo),
         onTap: () async {
           if (await _abrirFormulario(context, veiculo)) recarregar();
         },
@@ -178,7 +167,6 @@ class _ListaMotoristas extends StatelessWidget {
           if ((motorista['cnh'] ?? '').isNotEmpty) 'CNH ${motorista['cnh']}',
           if (motorista['ativo'] == false) 'Inativo',
         ].join(' · ')),
-        trailing: _iconeSincronizado(motorista),
         onTap: () async {
           if (await _abrirFormulario(context, motorista)) recarregar();
         },

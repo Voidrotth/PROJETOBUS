@@ -1,12 +1,12 @@
 require('dotenv').config();
 
+const fs = require('fs');
 const http = require('http');
+const path = require('path');
 const express = require('express');
 const cors = require('cors');
 const conectarBanco = require('./configuracao/banco');
 const { iniciarTempoReal } = require('./configuracao/tempoReal');
-const { iniciarSincronizadorFleetbase, pararSincronizadorFleetbase } = require('./fleetbase/sincronizadorFleetbase');
-const FleetbaseService = require('./fleetbase/FleetbaseService');
 
 // Importar rotas
 const rotasOperacao = require('./rotas/rotasOperacao');
@@ -16,8 +16,8 @@ const rotasUsuarios = require('./rotas/rotasUsuarios');
 const rotasVeiculos = require('./rotas/rotasVeiculos');
 const rotasViagens = require('./rotas/rotasViagens');
 const rotasLocalizacao = require('./rotas/rotasLocalizacao');
-const rotasFleetbase = require('./rotas/rotasFleetbase');
 const rotasIndicadores = require('./rotas/rotasIndicadores');
+const rotasTransmissao = require('./rotas/rotasTransmissao');
 
 const app = express();
 const PORTA = process.env.PORT || 3000;
@@ -34,38 +34,34 @@ app.use('/api/usuarios', rotasUsuarios);
 app.use('/api/veiculos', rotasVeiculos);
 app.use('/api/viagens', rotasViagens);
 app.use('/api/localizacao', rotasLocalizacao);
-app.use('/api/fleetbase', rotasFleetbase);
 app.use('/api/indicadores', rotasIndicadores);
+app.use('/api/transmissao', rotasTransmissao);
 
 // Rota de saúde
 app.get('/api/saude', (req, res) => {
   res.json({
     status: 'ok',
     horario: new Date().toISOString(),
-    servico: 'PROJETOBUS Backend',
-    fleetbase: FleetbaseService.habilitado ? 'habilitado' : 'desabilitado'
+    servico: 'PROJETOBUS Backend'
   });
 });
 
-// Para os serviços em segundo plano ao encerrar o servidor
-function encerrar() {
-  pararSincronizadorFleetbase();
-  process.exit(0);
+// Painel web (build do Flutter) no mesmo endereço da API, quando já foi compilado
+// (cd frontend && flutter build web). Um endereço só também serve para o link https do celular.
+const PASTA_PAINEL = path.join(__dirname, '../../frontend/build/web');
+if (fs.existsSync(PASTA_PAINEL)) {
+  app.use(express.static(PASTA_PAINEL));
+  app.get(/^(?!\/api\/|\/socket\.io\/).*/, (req, res) => res.sendFile(path.join(PASTA_PAINEL, 'index.html')));
 }
-process.on('SIGINT', encerrar);
-process.on('SIGTERM', encerrar);
 
 // Servidor HTTP compartilhado entre a API e o Socket.IO (tempo real do painel)
 const servidorHttp = http.createServer(app);
 iniciarTempoReal(servidorHttp);
 
-// Conectar ao MongoDB, abrir a API e depois ligar o Fleetbase
-conectarBanco()
-  .then(() => new Promise(resolver => {
-    servidorHttp.listen(PORTA, () => {
-      console.log(`PROJETOBUS Backend rodando na porta ${PORTA}`);
-      console.log(`Verificação de saúde: http://localhost:${PORTA}/api/saude`);
-      resolver();
-    });
-  }))
-  .then(iniciarSincronizadorFleetbase);
+// Conectar ao MongoDB e abrir a API
+conectarBanco().then(() => {
+  servidorHttp.listen(PORTA, () => {
+    console.log(`PROJETOBUS Backend rodando na porta ${PORTA}`);
+    console.log(`Verificação de saúde: http://localhost:${PORTA}/api/saude`);
+  });
+});

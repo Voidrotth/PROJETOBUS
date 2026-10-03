@@ -3,7 +3,6 @@ const Veiculo = require('../modelos/Veiculo');
 const Localizacao = require('../modelos/Localizacao');
 const Pagamento = require('../modelos/Pagamento');
 const Operacao = require('../modelos/Operacao');
-const FleetbaseService = require('../fleetbase/FleetbaseService');
 const { emitirParaPainel } = require('../configuracao/tempoReal');
 
 const FUSO_OPERACAO = process.env.FUSO_OPERACAO || 'America/Sao_Paulo';
@@ -75,7 +74,6 @@ async function iniciarViagem(motoristaId, { veiculoId, linha, kmInicial }) {
 
   await viagem.populate([{ path: 'veiculo', select: 'placa prefixo' }, { path: 'motorista', select: 'nome' }]);
   emitirParaPainel('viagem:iniciada', resumoViagem(viagem));
-  FleetbaseService.iniciarOperacao(viagem);
   return viagem;
 }
 
@@ -151,7 +149,6 @@ async function registrarPosicoes(motoristaId, viagemId, posicoesBrutas) {
   if (atualizarPosicao && viagem.status === 'em_andamento') {
     viagem.ultimaPosicao = maisRecente;
     emitirParaPainel('viagem:posicao', resumoViagem(viagem));
-    FleetbaseService.atualizarLocalizacao(viagem, maisRecente);
   }
 
   return { recebidas: lista.length, gravadas };
@@ -259,7 +256,6 @@ async function encerrarViagem(motoristaId, viagemId, dados = {}) {
   }
 
   emitirParaPainel('viagem:encerrada', resumoViagem(viagem));
-  FleetbaseService.encerrarOperacao(viagem);
   return { viagem, pagamento };
 }
 

@@ -345,3 +345,7 @@ Comandos do dia a dia:
 6. Abrir **http://localhost:3000** (ou a porta do seu `.env`) e entrar com o administrador.
 7. Para o celular, abrir outro PowerShell e rodar `cloudflared tunnel --url http://localhost:3000`.
 8. Abrir no celular o link `https://...trycloudflare.com` que aparecer.
+
+
+cd backend
+pm2 start src/servidor.js --name projetobus

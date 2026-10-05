@@ -27,6 +27,7 @@ class GraficoDiario extends StatefulWidget {
   final List<SerieGrafico> series;
   final bool empilhado;
   final String Function(double) formatar;
+  final double altura;
 
   const GraficoDiario({
     super.key,
@@ -34,6 +35,7 @@ class GraficoDiario extends StatefulWidget {
     required this.series,
     required this.formatar,
     this.empilhado = false,
+    this.altura = 260,
   });
 
   @override
@@ -59,7 +61,7 @@ class _GraficoDiarioEstado extends State<GraficoDiario> {
             child: Wrap(spacing: 16, children: [for (final serie in widget.series) _legenda(serie)]),
           ),
         SizedBox(
-          height: 260,
+          height: widget.altura,
           child: LayoutBuilder(builder: (context, limites) {
             final largura = limites.maxWidth - _margemEsquerda - _margemDireita;
             final passo = total == 0 ? 0.0 : largura / total;
@@ -161,7 +163,7 @@ class _Pintor extends CustomPainter {
 
   void _texto(Canvas canvas, String texto, Offset posicao, {bool alinharDireita = false, bool centralizar = false}) {
     final pintor = TextPainter(
-      text: TextSpan(text: texto, style: const TextStyle(fontSize: 11, color: _corApagado)),
+      text: TextSpan(text: texto, style: const TextStyle(fontFamily: 'Inter', fontSize: 11, color: _corApagado)),
       textDirection: TextDirection.ltr,
     )..layout();
     final dx = alinharDireita ? posicao.dx - pintor.width : (centralizar ? posicao.dx - pintor.width / 2 : posicao.dx);
@@ -284,6 +286,11 @@ class _Pintor extends CustomPainter {
           iniciar = false;
         }
         canvas.drawPath(caminho, linha);
+        // Ponto em cada dia: um dia isolado (vizinhos sem dado) não forma linha e sumiria
+        for (var i = 0; i < total; i++) {
+          final valor = serie.valores[i];
+          if (valor != null) canvas.drawCircle(Offset(x(i), y(valor)), 2.5, Paint()..color = serie.cor);
+        }
         final valorNoIndice = indice == null ? null : serie.valores[indice!];
         if (valorNoIndice != null) {
           final centro = Offset(x(indice!), y(valorNoIndice));

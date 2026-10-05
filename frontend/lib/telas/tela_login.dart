@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+import '../componentes/logo.dart';
 import '../servicos/servico_api.dart';
+import '../tema/cores.dart';
+import '../tema/espacamento.dart';
+import '../tema/tipografia.dart';
 
 class TelaLogin extends StatefulWidget {
   final VoidCallback aoEntrar;
@@ -55,16 +59,17 @@ class _TelaLoginEstado extends State<TelaLogin> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Icon(Icons.directions_bus, size: 72, color: Colors.blue),
-                  const SizedBox(height: 8),
-                  Text('PROJETOBUS',
-                      textAlign: TextAlign.center, style: Theme.of(context).textTheme.headlineMedium),
-                  if (_motorista)
-                    const Text('Acesso do motorista', textAlign: TextAlign.center, style: TextStyle(color: Colors.black54)),
-                  const SizedBox(height: 32),
+                  const Center(child: Logo(altura: 56)),
+                  const SizedBox(height: Esp.s8),
+                  const Text('Dashboard de Operação de Transporte',
+                      textAlign: TextAlign.center, style: Estilos.tituloPagina),
+                  const SizedBox(height: Esp.s1),
+                  Text(_motorista ? 'Acesso do motorista' : 'Acesso da administração',
+                      textAlign: TextAlign.center, style: Estilos.pequeno),
+                  const SizedBox(height: Esp.s8),
                   TextFormField(
                     controller: _emailCtrl,
-                    decoration: InputDecoration(labelText: _motorista ? 'Matrícula' : 'Usuário', border: const OutlineInputBorder()),
+                    decoration: InputDecoration(labelText: _motorista ? 'Matrícula' : 'Usuário'),
                     keyboardType: _motorista ? TextInputType.number : TextInputType.text,
                     autofillHints: const [AutofillHints.username],
                     validator: (v) => (v == null || v.trim().isEmpty) ? (_motorista ? 'Informe a matrícula' : 'Informe o usuário') : null,
@@ -72,14 +77,14 @@ class _TelaLoginEstado extends State<TelaLogin> {
                   const SizedBox(height: 16),
                   TextFormField(
                     controller: _senhaCtrl,
-                    decoration: const InputDecoration(labelText: 'Senha', border: OutlineInputBorder()),
+                    decoration: const InputDecoration(labelText: 'Senha'),
                     obscureText: true,
                     onFieldSubmitted: (_) => _entrar(),
                     validator: (v) => (v == null || v.isEmpty) ? 'Informe a senha' : null,
                   ),
                   if (_erro != null) ...[
                     const SizedBox(height: 16),
-                    Text(_erro!, style: const TextStyle(color: Colors.red), textAlign: TextAlign.center),
+                    Text(_erro!, style: const TextStyle(color: Cores.erro), textAlign: TextAlign.center),
                   ],
                   const SizedBox(height: 24),
                   FilledButton(

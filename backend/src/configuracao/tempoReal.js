@@ -1,7 +1,7 @@
 const { Server } = require('socket.io');
 const { lerToken } = require('../middlewares/autenticacao');
 
-// Tempo real do painel: só administradores recebem as posições dos ônibus
+// Tempo real do painel (administração e TV)
 const SALA_PAINEL = 'painel';
 
 let io;
@@ -19,11 +19,11 @@ function iniciarTempoReal(servidorHttp) {
   });
 
   io.on('connection', socket => {
-    if (socket.usuario.papel === 'admin') socket.join(SALA_PAINEL);
+    if (['admin', 'tv'].includes(socket.usuario.papel)) socket.join(SALA_PAINEL);
   });
 }
 
-// Eventos: viagem:iniciada, viagem:posicao, viagem:encerrada, dados:atualizados (relatórios processados)
+// Evento: dados:atualizados (relatórios processados)
 function emitirParaPainel(evento, dados) {
   if (io) io.to(SALA_PAINEL).emit(evento, dados);
 }

@@ -14,8 +14,6 @@ const rotasPainel = require('./rotas/rotasPainel');
 const rotasAuth = require('./rotas/rotasAuth');
 const rotasUsuarios = require('./rotas/rotasUsuarios');
 const rotasVeiculos = require('./rotas/rotasVeiculos');
-const rotasViagens = require('./rotas/rotasViagens');
-const rotasLocalizacao = require('./rotas/rotasLocalizacao');
 const rotasIndicadores = require('./rotas/rotasIndicadores');
 
 const app = express();
@@ -31,8 +29,6 @@ app.use('/api/painel', rotasPainel);
 app.use('/api/auth', rotasAuth);
 app.use('/api/usuarios', rotasUsuarios);
 app.use('/api/veiculos', rotasVeiculos);
-app.use('/api/viagens', rotasViagens);
-app.use('/api/localizacao', rotasLocalizacao);
 app.use('/api/indicadores', rotasIndicadores);
 
 // Rota de saúde
@@ -45,7 +41,7 @@ app.get('/api/saude', (req, res) => {
 });
 
 // Painel web (build do Flutter) no mesmo endereço da API, quando já foi compilado
-// (cd frontend && flutter build web). Um endereço só também serve para o link https do celular.
+// (cd frontend && flutter build web).
 const PASTA_PAINEL = path.join(__dirname, '../../frontend/build/web');
 if (fs.existsSync(PASTA_PAINEL)) {
   app.use(express.static(PASTA_PAINEL));

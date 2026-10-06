@@ -66,14 +66,6 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>O PROJETOBUS usa a localização para registrar o trajeto do ônibus durante a viagem.</string>
-	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>O PROJETOBUS continua registrando o trajeto com a tela bloqueada enquanto a viagem estiver em andamento.</string>
-	<key>UIBackgroundModes</key>
-	<array>
-		<string>location</string>
-	</array>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsLocalNetworking</key>

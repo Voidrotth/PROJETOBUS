@@ -72,36 +72,6 @@ class ServicoApi {
       await _requisitar(id == null ? 'POST' : 'PUT', id == null ? '/usuarios' : '/usuarios/$id', corpo: dados);
 
 
-  // ==================== VIAGENS ====================
-
-  /// Linhas que existem nos relatórios importados (ex.: ["01", "02", ...])
-  static Future<List<String>> linhasDisponiveis() async =>
-      ((await _requisitar('GET', '/viagens/opcoes'))['linhas'] as List).cast<String>();
-
-  /// dados: placa, linha, kmInicial (o resto da viagem vem dos relatórios)
-  static Future<Map<String, dynamic>> iniciarViagem(Map<String, dynamic> dados) async =>
-      await _requisitar('POST', '/viagens/iniciar', corpo: dados);
-
-  static Future<Map<String, dynamic>?> viagemAtual() async => await _requisitar('GET', '/viagens/atual');
-
-  static Future<Map<String, dynamic>> encerrarViagem(String viagemId, Map<String, dynamic> fechamento) async =>
-      await _requisitar('POST', '/viagens/$viagemId/encerrar', corpo: fechamento);
-
-  static Future<void> enviarPosicoes(String viagemId, List<Map<String, dynamic>> posicoes) async {
-    await _requisitar('POST', '/localizacao',
-        corpo: {'viagemId': viagemId, 'posicoes': posicoes}, tempoLimite: const Duration(seconds: 15));
-  }
-
-  /// Km rodados (hodômetro) e combustível estimado por ônibus no período (AAAA-MM-DD)
-  static Future<Map<String, dynamic>> kmPorVeiculo(String inicio, String fim) async =>
-      await _requisitar('GET', Uri(path: '/viagens/km', queryParameters: {'inicio': inicio, 'fim': fim}).toString());
-
-  static Future<List<Map<String, dynamic>>> viagensAoVivo() async =>
-      _lista(await _requisitar('GET', '/viagens/ao-vivo'));
-
-  static Future<List<Map<String, dynamic>>> trajeto(String viagemId) async =>
-      _lista(await _requisitar('GET', '/viagens/$viagemId/trajeto'));
-
   // ==================== VERIFICAÇÃO (RELATÓRIOS DO VERIFICADOR) ====================
 
   /// Filtros: inicio e fim (AAAA-MM-DD) e tipos (util, nao_util, feriado separados por vírgula)

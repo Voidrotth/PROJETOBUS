@@ -16,8 +16,14 @@ function gerarToken(usuario) {
   });
 }
 
+// TV da SEMOB: fica ligada 24 h, então entra com uma chave fixa (TV_CHAVE no .env) em vez do
+// login de 12 h. O papel "tv" só lê os indicadores.
+const resumo = texto => crypto.createHash('sha256').update(String(texto)).digest();
+const chaveTv = process.env.TV_CHAVE ? resumo(process.env.TV_CHAVE) : null;
+
 // Lança erro se o token for inválido ou expirado
 function lerToken(token) {
+  if (chaveTv && token && crypto.timingSafeEqual(resumo(token), chaveTv)) return { papel: 'tv', nome: 'TV' };
   return jwt.verify(token, segredo);
 }
 

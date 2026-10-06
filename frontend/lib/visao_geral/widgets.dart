@@ -69,25 +69,6 @@ class SeletorPeriodo extends StatelessWidget {
   }
 }
 
-/// ◀ rótulo do período ▶
-class NavegadorPeriodo extends StatelessWidget {
-  final String rotulo;
-  final VoidCallback? aoVoltar;
-  final VoidCallback? aoAvancar;
-
-  const NavegadorPeriodo({super.key, required this.rotulo, this.aoVoltar, this.aoAvancar});
-
-  @override
-  Widget build(BuildContext context) => Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          IconButton(onPressed: aoVoltar, icon: const Icon(Icons.chevron_left), tooltip: 'Período anterior'),
-          Text(rotulo, style: Estilos.tituloCartao),
-          IconButton(onPressed: aoAvancar, icon: const Icon(Icons.chevron_right), tooltip: 'Próximo período'),
-        ],
-      );
-}
-
 /// Card de um indicador: título, valor, detalhe e variação contra o período de comparação.
 /// [valor] nulo = carregando (mostra o esqueleto do wireframe).
 class CartaoIndicador extends StatelessWidget {

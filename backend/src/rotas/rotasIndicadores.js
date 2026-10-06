@@ -11,7 +11,9 @@ const { autenticar, exigirPapel } = require('../middlewares/autenticacao');
 const { rota, ErroHttp } = require('../middlewares/tratarErro');
 const { emitirParaPainel } = require('../configuracao/tempoReal');
 
-roteador.use(autenticar, exigirPapel('admin'));
+roteador.use(autenticar);
+// A TV só lê os indicadores (GET /); o resto é da administração
+roteador.use((req, res, next) => (req.method === 'GET' && req.path === '/' ? next() : exigirPapel('admin')(req, res, next)));
 
 const TIPOS_DIA = {
   util: 'Dia útil',

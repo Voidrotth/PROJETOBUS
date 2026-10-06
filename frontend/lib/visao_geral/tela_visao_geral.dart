@@ -1,7 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:socket_io_client/socket_io_client.dart' as io;
 import '../componentes/grafico_diario.dart';
+import '../componentes/logo.dart';
 import '../servicos/servico_api.dart';
 import '../servicos/sessao.dart';
 import '../tema/cores.dart';
@@ -19,9 +23,20 @@ final _percentual = NumberFormat('#,##0.0%', 'pt_BR');
 
 String _ou(double? valor, String Function(double) formatar) => valor == null ? 'sem dado' : formatar(valor);
 
-/// Visão Geral da operação (wireframe do Figma): período, 5 indicadores e 4 gráficos.
-/// Os dados são os dos relatórios do Smart Report (GET /api/indicadores); a série inteira vem
-/// numa chamada só e os períodos são recortados aqui, então trocar de período é instantâneo.
+/// Quanto tempo cada período fica na tela antes de trocar para o próximo (ajustável com − e +)
+const segundosPorPeriodoPadrao = 60;
+const _passoSegundos = 10;
+const _minimoSegundos = 10;
+const _maximoSegundos = 600;
+const _chaveSegundos = 'tv_segundos_por_periodo';
+
+/// Recarrega os dados a cada 5 min (além do aviso em tempo real); também tenta de novo se cair
+const _segundosEntreRecargas = 300;
+
+/// Visão Geral da operação para a TV da SEMOB (ligada 24 h, sem botões): 5 indicadores e 4
+/// gráficos do período mais recente, trocando sozinho Diário → Semanal → Quinzenal → Mensal a cada
+/// minuto. Os dados são os dos relatórios do Smart Report (GET /api/indicadores); a série inteira
+/// vem numa chamada só e os períodos são recortados aqui.
 class TelaVisaoGeral extends StatefulWidget {
   /// Desligado nos testes: o Socket.IO tentaria conectar num servidor de verdade
   final bool tempoReal;
@@ -43,18 +58,56 @@ class _TelaVisaoGeralEstado extends State<TelaVisaoGeral> {
   Periodo? _periodo;
 
   io.Socket? _socket;
+  Timer? _relogio;
+  int _segundos = 0;
+  int _segundosPorPeriodo = segundosPorPeriodoPadrao;
+  int _restante = segundosPorPeriodoPadrao;
 
   @override
   void initState() {
     super.initState();
     _carregar();
     if (widget.tempoReal) _conectarTempoReal();
+    _relogio = Timer.periodic(const Duration(seconds: 1), (_) => _tique());
+    _lerTempoSalvo();
+  }
+
+  // O tempo escolhido fica salvo no navegador da TV e volta depois de reiniciar
+  Future<void> _lerTempoSalvo() async {
+    try {
+      final salvo = (await SharedPreferences.getInstance()).getInt(_chaveSegundos);
+      if (salvo != null && mounted) _definirTempo(salvo, salvar: false);
+    } catch (_) {
+      // sem armazenamento no navegador: fica o padrão
+    }
+  }
+
+  void _definirTempo(int segundos, {bool salvar = true}) {
+    final novo = segundos.clamp(_minimoSegundos, _maximoSegundos);
+    setState(() {
+      _segundosPorPeriodo = novo;
+      _restante = novo;
+    });
+    if (salvar) SharedPreferences.getInstance().then((p) => p.setInt(_chaveSegundos, novo)).ignore();
   }
 
   @override
   void dispose() {
+    _relogio?.cancel();
     _socket?.dispose();
     super.dispose();
+  }
+
+  void _tique() {
+    setState(() {
+      _segundos++;
+      _restante--;
+    });
+    if (_restante <= 0) {
+      _restante = _segundosPorPeriodo;
+      _trocarTipo(TipoPeriodo.values[(_tipo.index + 1) % TipoPeriodo.values.length]);
+    }
+    if (_segundos % _segundosEntreRecargas == 0) _carregar(silencioso: true);
   }
 
   // Relatórios novos processados no servidor: recarrega sem piscar a tela
@@ -89,11 +142,9 @@ class _TelaVisaoGeralEstado extends State<TelaVisaoGeral> {
         _porData = {for (final dia in dias) dia['data'] as String: dia};
         _alerta = resposta['alertaCirculante'] as Map<String, dynamic>?;
         _erro = null;
-        // Abre no período mais recente com dados; o escolhido continua se ainda estiver dentro dos dados
+        // Sempre o período mais recente com dados
         final ultima = _ultimaData;
-        if (ultima != null && (_periodo == null || _periodo!.inicio.isAfter(ultima))) {
-          _periodo = Periodo.contendo(_tipo, ultima);
-        }
+        if (ultima != null) _periodo = Periodo.contendo(_tipo, ultima);
       });
     } catch (e) {
       if (mounted) setState(() => _erro = e is ErroApi ? e.mensagem : 'Sem conexão com o servidor');
@@ -102,29 +153,14 @@ class _TelaVisaoGeralEstado extends State<TelaVisaoGeral> {
     }
   }
 
-  DateTime? get _primeiraData => _dias == null || _dias!.isEmpty ? null : dataDeIso(_dias!.first['data'] as String);
   DateTime? get _ultimaData => _dias == null || _dias!.isEmpty ? null : dataDeIso(_dias!.last['data'] as String);
 
   void _trocarTipo(TipoPeriodo tipo) {
     final ultima = _ultimaData;
-    if (ultima == null) return;
-    // Mantém a referência: de "semana de 08/09" para mensal vai para setembro
-    final atual = _periodo;
-    final referencia = atual == null || atual.fim.isAfter(ultima) ? ultima : atual.fim;
     setState(() {
       _tipo = tipo;
-      _periodo = Periodo.contendo(tipo, referencia);
+      _periodo = ultima == null ? null : Periodo.contendo(tipo, ultima);
     });
-  }
-
-  bool get _podeVoltar {
-    final primeira = _primeiraData;
-    return _periodo != null && primeira != null && !_periodo!.anterior().fim.isBefore(primeira);
-  }
-
-  bool get _podeAvancar {
-    final ultima = _ultimaData;
-    return _periodo != null && ultima != null && !_periodo!.proximo().inicio.isAfter(ultima);
   }
 
   @override
@@ -134,18 +170,18 @@ class _TelaVisaoGeralEstado extends State<TelaVisaoGeral> {
 
     return LayoutBuilder(builder: (context, limites) {
       final celular = limites.maxWidth < Larguras.sm;
-      final margem = celular ? Esp.s4 : Esp.s8 + Esp.s1;
-      final largura = (limites.maxWidth - 2 * margem).clamp(0.0, Larguras.conteudo);
+      final margem = celular ? Esp.s4 : Esp.s8;
+      final largura = (limites.maxWidth - 2 * margem).clamp(0.0, double.infinity);
+      // Na TV tudo cabe numa tela só: as duas linhas de gráficos dividem a altura que sobra
+      // ponytail: altura do cabeçalho e dos cards estimada (~420 px); ajuste aqui se a TV cortar
+      final alturaLinha = ((limites.maxHeight - 420) / 2).clamp(260.0, 600.0);
 
       final periodo = _periodo;
       final resumo = dias == null || periodo == null ? null : ResumoPeriodo.de(dias, periodo);
       final comparado = dias == null || periodo == null ? null : ResumoPeriodo.de(dias, periodo.comparacao());
 
-      return RefreshIndicator(
-        onRefresh: _carregar,
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: EdgeInsets.symmetric(horizontal: margem, vertical: celular ? Esp.s6 : Esp.s8),
+      return SingleChildScrollView(
+          padding: EdgeInsets.symmetric(horizontal: margem, vertical: celular ? Esp.s4 : Esp.s5),
           child: Center(
             child: SizedBox(
               width: largura,
@@ -158,16 +194,15 @@ class _TelaVisaoGeralEstado extends State<TelaVisaoGeral> {
                     _aviso('Nenhum relatório importado ainda. Os indicadores aparecem assim que os relatórios '
                         'do Smart Report forem processados.')
                   else ...[
-                    SizedBox(height: celular ? Esp.s6 : Esp.s12),
+                    SizedBox(height: celular ? Esp.s4 : Esp.s5),
                     _cartoes(resumo, comparado, largura),
-                    SizedBox(height: celular ? Esp.s6 : Esp.s12),
-                    _graficos(resumo, largura),
+                    SizedBox(height: celular ? Esp.s4 : Esp.s5),
+                    _graficos(resumo, largura, alturaLinha),
                   ],
                 ],
               ),
             ),
           ),
-        ),
       );
     });
   }
@@ -177,39 +212,60 @@ class _TelaVisaoGeralEstado extends State<TelaVisaoGeral> {
   Widget _cabecalho() {
     final periodo = _periodo;
     final ultima = _ultimaData;
+    final agora = DateTime.now();
+    final proximo = TipoPeriodo.values[(_tipo.index + 1) % TipoPeriodo.values.length];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
+        Wrap(
+          spacing: Esp.s8,
+          runSpacing: Esp.s3,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          alignment: WrapAlignment.spaceBetween,
           children: [
-            const Expanded(child: Text('Período', style: Estilos.tituloPagina)),
-            if (ultima != null) Text('dados até ${dataBr(ultima)}', style: Estilos.tag),
-            IconButton(
-              onPressed: _carregando ? null : _carregar,
-              icon: _carregando
-                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Icon(Icons.refresh),
-              tooltip: 'Atualizar',
+            const Logo(altura: 44),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Só mostra qual período está na tela; quem troca é o cronômetro
+                FittedBox(fit: BoxFit.scaleDown, child: SeletorPeriodo(selecionado: _tipo)),
+                const SizedBox(height: Esp.s1),
+                Text(periodo?.rotulo ?? '', style: Estilos.tituloPagina),
+              ],
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(DateFormat('HH:mm').format(agora), style: Estilos.valor),
+                Text('${diaDaSemana(agora)}, ${dataBr(agora)}', style: Estilos.pequeno),
+                if (ultima != null) Text('dados até ${dataBr(ultima)}', style: Estilos.tag),
+              ],
             ),
           ],
         ),
-        const SizedBox(height: Esp.s2),
-        Wrap(
-          spacing: Esp.s4,
-          runSpacing: Esp.s2,
-          crossAxisAlignment: WrapCrossAlignment.center,
+        const SizedBox(height: Esp.s3),
+        Row(
           children: [
-            FittedBox(
-              fit: BoxFit.scaleDown,
-              child: SeletorPeriodo(selecionado: _tipo, aoSelecionar: periodo == null ? null : _trocarTipo),
+            Expanded(child: Text('próximo: ${proximo.nome} em ${_restante}s', style: Estilos.tag)),
+            const Text('trocar a cada', style: Estilos.tag),
+            IconButton(
+              onPressed: () => _definirTempo(_segundosPorPeriodo - _passoSegundos),
+              icon: const Icon(Icons.remove),
+              tooltip: 'Menos tempo',
             ),
-            if (periodo != null)
-              NavegadorPeriodo(
-                rotulo: periodo.rotulo,
-                aoVoltar: _podeVoltar ? () => setState(() => _periodo = periodo.anterior()) : null,
-                aoAvancar: _podeAvancar ? () => setState(() => _periodo = periodo.proximo()) : null,
-              ),
+            Text('${_segundosPorPeriodo}s', style: Estilos.corpo.copyWith(fontWeight: FontWeight.w600)),
+            IconButton(
+              onPressed: () => _definirTempo(_segundosPorPeriodo + _passoSegundos),
+              icon: const Icon(Icons.add),
+              tooltip: 'Mais tempo',
+            ),
           ],
+        ),
+        LinearProgressIndicator(
+          value: 1 - _restante / _segundosPorPeriodo,
+          minHeight: 3,
+          color: Cores.primaria,
+          backgroundColor: Cores.secundaria,
         ),
       ],
     );
@@ -235,8 +291,8 @@ class _TelaVisaoGeralEstado extends State<TelaVisaoGeral> {
               const Icon(Icons.cloud_off, size: 48, color: Cores.erro),
               const SizedBox(height: Esp.s4),
               Text(_erro!, style: Estilos.corpo, textAlign: TextAlign.center),
-              const SizedBox(height: Esp.s4),
-              FilledButton.icon(onPressed: _carregar, icon: const Icon(Icons.refresh), label: const Text('Tentar novamente')),
+              const SizedBox(height: Esp.s2),
+              const Text('Tentando de novo automaticamente', style: Estilos.pequeno),
             ],
           ),
         ),
@@ -365,7 +421,7 @@ class _TelaVisaoGeralEstado extends State<TelaVisaoGeral> {
     );
   }
 
-  Widget _graficos(ResumoPeriodo? r, double largura) {
+  Widget _graficos(ResumoPeriodo? r, double largura, double alturaLinha) {
     final largo = largura >= Larguras.lg;
     if (r == null) {
       // Carregando: blocos cinza do wireframe
@@ -388,8 +444,8 @@ class _TelaVisaoGeralEstado extends State<TelaVisaoGeral> {
 
     final datas = _datasDoGrafico(r.periodo);
     final janela = r.periodo.tipo == TipoPeriodo.diario ? ' · 7 dias até o dia escolhido' : '';
-    final alturaLinha1 = largo ? 400.0 : null;
-    final alturaLinha2 = largo ? 360.0 : null;
+    final alturaLinha1 = largo ? alturaLinha : null;
+    final alturaLinha2 = largo ? alturaLinha : null;
 
     final passageiros = PainelGrafico(
       titulo: 'Passageiros por dia',
@@ -480,7 +536,7 @@ class _TelaVisaoGeralEstado extends State<TelaVisaoGeral> {
             Expanded(flex: 3, child: cumprimento),
           ],
         ),
-        const SizedBox(height: Esp.s10),
+        const SizedBox(height: Esp.s5),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

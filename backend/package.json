@@ -8,8 +8,7 @@
     "dev": "node --watch src/servidor.js",
     "criar-usuario": "node src/scripts/criarUsuario.js",
     "importar-dados": "node src/scripts/importarDados.js",
-    "test": "node --test test/leitorRelatorios.test.js",
-    "simular-viagem": "node src/scripts/simularViagem.js"
+    "test": "node --test test/leitorRelatorios.test.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

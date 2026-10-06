@@ -3,11 +3,10 @@
 Painel da Secretaria de Mobilidade Urbana de São Caetano do Sul (SEMOB) que substitui os relatórios
 estáticos recebidos por e-mail.
 
-- **Painel administrativo** (navegador, computador ou celular): a tela **Visão Geral** mostra
-  quilometragem, viagens, passageiros pagantes, passageiros não pagantes e informações financeiras, por
-  período **diário, semanal, quinzenal ou mensal**, com gráficos e comparação com o período anterior.
-- **Motorista** (celular): entra com a matrícula, informa placa, linha e hodômetro e transmite a
-  localização do ônibus.
+O dashboard foi feito para ficar numa **TV ligada 24 horas**: não tem botões. Ele mostra quilometragem,
+viagens, passageiros pagantes, passageiros não pagantes e informações financeiras, com gráficos e
+comparação com o período anterior, e troca sozinho entre **diário, semanal, quinzenal e mensal** a cada
+1 minuto.
 
 Um único endereço serve tudo: o backend (Node.js) entrega a API e o painel (Flutter Web). Os dados ficam
 no MongoDB Atlas e vêm dos relatórios do **Smart Report**.
@@ -24,7 +23,6 @@ Instale no Windows (uma vez só):
 | Node.js 20 ou mais novo | rodar o backend | https://nodejs.org |
 | Flutter (versão estável) | compilar o painel | https://docs.flutter.dev/get-started/install/windows/web |
 | Google Chrome | rodar o painel em modo de desenvolvimento | https://www.google.com/chrome |
-| cloudflared | acessar pelo celular (opcional) | https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/ |
 
 Depois de instalar, feche o PowerShell e abra de novo para os comandos serem reconhecidos.
 
@@ -69,6 +67,7 @@ Abra **`PROJETOBUS\backend\.env`** no Bloco de Notas e preencha:
 | `JWT_SEGREDO` | um texto longo e aleatório (é o que mantém os logins válidos) |
 | `OPENROUTER_API_KEY` | chave da OpenRouter (só é usada quando chega um relatório com colunas diferentes) |
 | `PORT` | porta do sistema (padrão `3000`) |
+| `TV_CHAVE` | um texto longo e aleatório: é a "senha" da TV, que entra sem login (veja "Ligar a TV") |
 
 As outras variáveis (`IA_MODELO`, `FUSO_OPERACAO`, `DADOS_PASTA`) já vêm prontas.
 
@@ -91,7 +90,7 @@ O formato do comando é:
 npm run criar-usuario -- <usuário> <senha> "<nome>" <papel>
 ```
 
-- `<papel>` só aceita **`admin`** (painel) ou **`motorista`** (app do motorista).
+- Use o papel **`admin`**. O dashboard só aceita administradores (e a TV, pela chave).
 - A senha precisa ter pelo menos 6 caracteres.
 - O usuário não pode repetir. Se aparecer `Já existe um usuário com este e-mail`, escolha outro nome de
   usuário.
@@ -103,18 +102,6 @@ npm run criar-usuario -- pedro "minhasenha" "Pedro" admin
 ```
 
 No painel, o login será `pedro` com a senha `minhasenha`.
-
-## Motorista
-
-```
-npm run criar-usuario -- motorista1 "senha123" "Motorista Teste" motorista
-```
-
-No app, o motorista entra com `motorista1` e `senha123`.
-
-O script não grava a matrícula. Num motorista de verdade, a matrícula importa: é a mesma dos relatórios
-do Smart Report e liga as viagens do app aos relatórios. O cadastro com matrícula era feito pela aba
-**Frota** do painel antigo, que hoje está fora do menu (veja "Telas fora do menu").
 
 ---
 
@@ -148,14 +135,28 @@ O Chrome abre sozinho. Depois de alterar o código, aperte `r` no terminal para 
 
 ---
 
-# Usar o painel (Visão Geral)
+# Ligar a TV
 
-1. Abra **http://localhost:3000** e entre com o usuário administrador.
-2. Em **Período**, escolha **Diário**, **Semanal** (segunda a domingo), **Quinzenal** (dias 1 a 15 e
-   16 ao fim do mês) ou **Mensal**.
-3. Use as setas **◀ ▶** para ir aos períodos anteriores.
-   - O painel abre no período mais recente que tem dados.
-   - A data dos dados mais recentes aparece em "dados até ...".
+1. Preencha `TV_CHAVE` no `.env` e reinicie o backend.
+2. No navegador da TV (ou do computador ligado nela), abra:
+
+   **http://ENDERECO_DO_SERVIDOR:3000/?tv=SUA_TV_CHAVE**
+
+3. Deixe o navegador em tela cheia (`F11`). Não precisa fazer login nem tocar em nada.
+
+- A chave só deixa **ver** os indicadores: não envia relatórios nem altera nada.
+- Quem tem o endereço com a chave vê o dashboard. Se ela vazar, troque `TV_CHAVE` e reinicie o backend.
+- Sem a chave, o endereço abre o login, e um administrador vê a mesma tela.
+
+# O que a TV mostra
+
+A cada **1 minuto** a tela troca de período, sempre no mais recente que tem dados:
+**Diário → Semanal** (segunda a domingo) **→ Quinzenal** (dias 1 a 15 e 16 ao fim do mês) **→ Mensal** →
+volta ao diário. Uma barra no topo mostra quanto falta para a próxima troca. O topo também mostra o
+relógio, a data e até que dia vão os dados ("dados até ...").
+
+Para mudar o tempo de cada período, use os botões **−** e **+** ao lado de "trocar a cada" (de 10 em
+10 segundos, de 10 s a 10 min; o padrão é 60 s). A escolha fica salva no navegador da TV.
 
 A tela mostra:
 
@@ -176,9 +177,8 @@ Quando faltar um dado, o painel mostra **"sem dado"**, nunca zero. Hoje faltam e
 - **Cumprimento por turno:** só aparece se o relatório "Fator de Cumprimento de Viagem" foi importado.
   Sem ele, aparece só o total do período.
 
-O painel se atualiza sozinho quando relatórios novos são processados. O botão ↻ também atualiza.
-
-No celular, os cards ficam em duas colunas e a navegação vai para uma barra na parte de baixo.
+A tela se atualiza sozinha quando relatórios novos são processados e, de qualquer forma, a cada 5
+minutos. Se o servidor cair, ela tenta de novo sozinha.
 
 ---
 
@@ -200,63 +200,17 @@ npm run importar-dados -- --conferir
 
 ---
 
-# Acessar como motorista
-
-1. Na tela de login, toque em **Sou motorista**.
-2. Entre com o usuário (ou a matrícula) e a senha do motorista.
-3. Preencha:
-   - **Placa:** `ABC1234` ou Mercosul `ABC1D23`. Um ônibus ainda não cadastrado entra sozinho.
-   - **Linha:** 2 dígitos, ex.: `01`.
-   - **Km do hodômetro.**
-4. Toque em **INICIAR E TRANSMITIR LOCALIZAÇÃO** e permita o acesso à localização.
-5. Ao terminar, toque em encerrar e informe o **km do hodômetro no final**.
-
-No computador, a localização funciona em `http://localhost`. No celular, só funciona por um endereço
-**https** (veja a próxima seção).
-
----
-
-# Acessar pelo celular
-
-O navegador do celular só libera o GPS em endereços **https**. Com o backend rodando, abra **outro**
-PowerShell (o do `npm run dev` precisa continuar aberto) e rode:
-
-```
-cloudflared tunnel --url http://localhost:3000
-```
-
-1. No terminal aparece um endereço `https://...trycloudflare.com`. Copie esse endereço.
-2. Abra o endereço no navegador do celular (Safari no iPhone, Chrome no Android).
-3. Entre como administrador (painel) ou toque em **Sou motorista**.
-
-O endereço muda toda vez que o comando é iniciado. **Enquanto ele estiver rodando, o sistema fica
-acessível pela internet.** Feche o terminal (ou `Ctrl+C`) quando terminar os testes.
-
-No iPhone, mantenha a tela ligada durante a transmissão: o Safari para o GPS quando a tela apaga.
-
----
-
 # Telas fora do menu
 
-O menu segue o wireframe do Figma e hoje tem só a **Visão Geral**. As telas do painel antigo continuam
-no código, em `frontend\lib\telas\`, mas não aparecem no menu:
+O dashboard da TV é só a **Visão Geral**. As telas do painel antigo continuam no código, em
+`frontend\lib\telas\`, mas não aparecem:
 
 | Tela | O que faz | Enquanto isso, use |
 |---|---|---|
 | Frota (`frota\tela_cadastros_frota.dart`) | cadastro de ônibus e de motoristas com matrícula | `npm run criar-usuario` |
-| Ao vivo (`frota\tela_frota_ao_vivo.dart`) | mapa dos ônibus em tempo real | — |
 | Enviar dados (`tela_envio_dados.dart`) | envio dos relatórios pelo navegador | `npm run importar-dados` |
 | Verificação (`tela_verificacao.dart`) | conferência detalhada dos relatórios, feriados, exportação Excel/CSV | — |
 | Operação (`tela_operacao.dart`) | viagens por linha, horário e veículo | — |
-
-Para trazer uma delas de volta, acrescente uma entrada na lista `_abasDoPainel` em
-`frontend\lib\main.dart`, por exemplo:
-
-```dart
-ItemNavegacao(rotulo: 'Ao vivo', icone: Icons.map_outlined, construir: () => const TelaFrotaAoVivo()),
-```
-
-Não esqueça de importar o arquivo da tela no topo do `main.dart`.
 
 ---
 
@@ -266,9 +220,8 @@ Não esqueça de importar o arquivo da tela no topo do `main.dart`.
 |---|---|
 | `frontend\lib\tema\` | design system do Figma: cores, fontes (Fjalla One, Inter, Space Mono), espaçamentos e breakpoints |
 | `frontend\lib\visao_geral\` | tela Visão Geral, cálculo dos períodos e dos indicadores |
-| `frontend\lib\componentes\` | estrutura de navegação, logo e gráfico diário |
+| `frontend\lib\componentes\` | logo e gráfico diário |
 | `frontend\lib\servicos\` | comunicação com a API e sessão do usuário |
-| `frontend\lib\telas\motorista\` | app do motorista |
 | `frontend\assets\fonts\` | arquivos das fontes (o painel funciona sem internet) |
 
 O logo é um texto provisório. Para usar a imagem oficial, coloque o arquivo em `frontend\assets\` e
@@ -290,16 +243,6 @@ Frontend (períodos, cálculo dos indicadores e telas), na pasta `PROJETOBUS\fro
 flutter test
 ```
 
-Simular um ônibus andando, na pasta `PROJETOBUS\backend`, com o usuário e a senha de um administrador:
-
-```
-npm run simular-viagem -- pedro "minhasenha" 5 02
-```
-
-O comando põe um ônibus de teste (prefixo 9999) andando por 5 minutos na linha 02. O mapa que mostra
-esse ônibus fica na tela **Ao vivo**, hoje fora do menu (veja "Telas fora do menu"). `Ctrl+C` encerra
-antes.
-
 ---
 
 # PM2 (opcional)
@@ -314,22 +257,16 @@ npm install -g pm2
 Para iniciar, a partir da pasta `PROJETOBUS`:
 
 ```
-pm2 start backend/src/servidor.js --name projetobus-backend --cwd backend
-pm2 start "C:/Program Files (x86)/cloudflared/cloudflared.exe" --name projetobus-tunel --interpreter none -- tunnel --no-autoupdate --url http://localhost:3000
+pm2 start backend/src/servidor.js --name projetobus --cwd backend
 ```
-
-O segundo comando usa o caminho onde o instalador do Windows coloca o `cloudflared`. Ajuste se ele
-estiver em outra pasta.
 
 Comandos do dia a dia:
 
 | Comando | O que faz |
 |---|---|
 | `pm2 list` | mostra o que está rodando |
-| `pm2 restart projetobus-backend` | reinicia o sistema (depois de mudar o `.env`, atualizar o projeto ou rodar `flutter build web` pela primeira vez) |
-| `pm2 restart projetobus-tunel` | gera um novo endereço https para o celular |
-| `pm2 logs projetobus-tunel --lines 50` | mostra o endereço https atual (linha com `trycloudflare.com`) |
-| `pm2 logs projetobus-backend` | mostra os registros do backend |
+| `pm2 restart projetobus` | reinicia o sistema (depois de mudar o `.env`, atualizar o projeto ou rodar `flutter build web` pela primeira vez) |
+| `pm2 logs projetobus` | mostra os registros do backend |
 
 ---
 
@@ -339,13 +276,7 @@ Comandos do dia a dia:
 2. Instalar as dependências:
    `cd PROJETOBUS\backend` → `copy .env.example .env` → `npm install` →
    `cd ..\frontend` → `flutter pub get` → `flutter build web`
-3. Configurar `PROJETOBUS\backend\.env` (`MONGODB_URI`, `JWT_SEGREDO` e `PORT`).
+3. Configurar `PROJETOBUS\backend\.env` (`MONGODB_URI`, `JWT_SEGREDO`, `TV_CHAVE` e `PORT`).
 4. Criar um administrador: `cd ..\backend` → `npm run criar-usuario -- pedro "minhasenha" "Pedro" admin`
 5. Iniciar o backend: `npm run dev`
-6. Abrir **http://localhost:3000** (ou a porta do seu `.env`) e entrar com o administrador.
-7. Para o celular, abrir outro PowerShell e rodar `cloudflared tunnel --url http://localhost:3000`.
-8. Abrir no celular o link `https://...trycloudflare.com` que aparecer.
-
-
-cd backend
-pm2 start src/servidor.js --name projetobus
+6. Na TV, abrir **http://ENDERECO_DO_SERVIDOR:3000/?tv=SUA_TV_CHAVE** em tela cheia (`F11`).

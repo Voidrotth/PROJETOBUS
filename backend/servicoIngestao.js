@@ -6,16 +6,16 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
-const IndicadorDiario = require('../modelos/IndicadorDiario');
-const ImportacaoDados = require('../modelos/ImportacaoDados');
-const ViagemRealizada = require('../modelos/ViagemRealizada');
-const ViagemNaoCumprida = require('../modelos/ViagemNaoCumprida');
+const IndicadorDiario = require('./IndicadorDiario');
+const ImportacaoDados = require('./ImportacaoDados');
+const ViagemRealizada = require('./ViagemRealizada');
+const ViagemNaoCumprida = require('./ViagemNaoCumprida');
 const { lerHtml, lerCsv, ErroLeitura, DIAS_SEMANA } = require('./leitorRelatorios');
 const { NAO_CUMPRIDAS } = require('./modelosRelatorios');
 const { identificarTabela } = require('./servicoIA');
-const { ErroHttp } = require('../middlewares/tratarErro');
+const { ErroHttp } = require('./tratarErro');
 
-const PASTA_DADOS = path.resolve(process.env.DADOS_PASTA || path.join(__dirname, '../../../dados'));
+const PASTA_DADOS = path.resolve(process.env.DADOS_PASTA || path.join(__dirname, '../esquecidos/dados'));
 const TOLERANCIA = 0.051; // os relatórios arredondam km em 1 casa e R$ em 2
 const LOTE = 5000;
 

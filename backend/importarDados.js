@@ -4,8 +4,8 @@
 //      npm run importar-dados -- --conferir (só lê e confere, não grava nem conecta ao banco)
 require('dotenv').config();
 const mongoose = require('mongoose');
-const conectarBanco = require('../configuracao/banco');
-const { PASTA_DADOS, processarDados, lerEConferir } = require('../servicos/servicoIngestao');
+const conectarBanco = require('./banco');
+const { PASTA_DADOS, processarDados, lerEConferir } = require('./servicoIngestao');
 
 const SO_CONFERIR = process.argv.includes('--conferir');
 

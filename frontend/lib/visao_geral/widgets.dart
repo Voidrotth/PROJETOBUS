@@ -138,7 +138,7 @@ class CartaoIndicador extends StatelessWidget {
         children: [
           Icon(sobe ? Icons.arrow_upward : Icons.arrow_downward, size: 13, color: Cores.primaria),
           const SizedBox(width: Esp.s1),
-          Expanded(child: Text(texto, style: Estilos.tag, maxLines: 2)),
+          Expanded(child: Text(texto, style: Estilos.tag)),
         ],
       ),
     );

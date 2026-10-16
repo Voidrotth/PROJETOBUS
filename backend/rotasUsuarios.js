@@ -1,12 +1,11 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const roteador = express.Router();
-const Usuario = require('../modelos/Usuario');
-const { autenticar, exigirPapel } = require('../middlewares/autenticacao');
-const { rota, ErroHttp } = require('../middlewares/tratarErro');
+const Usuario = require('./Usuario');
+const { autenticar, exigirPapel } = require('./autenticacao');
+const { rota, ErroHttp } = require('./tratarErro');
 
-const CAMPOS_EDITAVEIS = ['nome', 'email', 'matricula', 'papel', 'telefone', 'cnh', 'ativo'];
-const MATRICULA = /^\d{1,10}$/;
+const CAMPOS_EDITAVEIS = ['nome', 'email', 'ativo'];
 
 // Cadastro de usuários é só para administradores
 roteador.use(autenticar, exigirPapel('admin'));
@@ -19,25 +18,18 @@ function camposDoCorpo(corpo) {
   return dados;
 }
 
-// GET /api/usuarios?papel=motorista
+// GET /api/usuarios
 roteador.get('/', rota(async (req, res) => {
-  const filtro = req.query.papel ? { papel: req.query.papel } : {};
-  res.json(await Usuario.find(filtro).sort({ nome: 1 }));
+  res.json(await Usuario.find().sort({ nome: 1 }));
 }));
 
 // POST /api/usuarios
-// Cria admin ou motorista.
+// Cria um administrador
 roteador.post('/', rota(async (req, res) => {
   const { senha } = req.body;
   const dados = camposDoCorpo(req.body);
-  const motorista = (dados.papel || 'motorista') === 'motorista';
-  if (motorista && !MATRICULA.test(String(dados.matricula || ''))) {
-    throw new ErroHttp(400, 'Informe a matrícula do motorista (só números, como nos relatórios)');
-  }
-  // Motorista entra pela matrícula; o e-mail é opcional
-  if (motorista && !dados.email) dados.email = `${dados.matricula}@motorista.semob`;
   if (!dados.nome || !dados.email || !senha) {
-    throw new ErroHttp(400, 'Campos obrigatórios: nome, usuário/e-mail (ou matrícula) e senha');
+    throw new ErroHttp(400, 'Campos obrigatórios: nome, usuário/e-mail e senha');
   }
   if (String(senha).length < 6) throw new ErroHttp(400, 'A senha precisa ter pelo menos 6 caracteres');
 
@@ -55,9 +47,6 @@ roteador.post('/', rota(async (req, res) => {
 // Atualiza dados; "senha" é opcional
 roteador.put('/:id', rota(async (req, res) => {
   const alteracoes = camposDoCorpo(req.body);
-  if (alteracoes.matricula !== undefined && alteracoes.matricula !== '' && !MATRICULA.test(String(alteracoes.matricula))) {
-    throw new ErroHttp(400, 'Matrícula deve ter só números');
-  }
   if (req.body.senha) {
     if (String(req.body.senha).length < 6) throw new ErroHttp(400, 'A senha precisa ter pelo menos 6 caracteres');
     alteracoes.senhaHash = await bcrypt.hash(String(req.body.senha), 10);

@@ -155,6 +155,27 @@ class _TelaVisaoGeralEstado extends State<TelaVisaoGeral> {
 
   DateTime? get _ultimaData => _dias == null || _dias!.isEmpty ? null : dataDeIso(_dias!.last['data'] as String);
 
+  /// Feriado cadastrado ou dia útil com programação reduzida (os relatórios não trazem feriados)
+  bool _atipico(String iso) {
+    final dia = _porData[iso];
+    return dia != null && (dia['tipoDia'] == 'feriado' || dia['programacaoReduzida'] == true);
+  }
+
+  /// No diário, o dia é comparado com o mesmo dia da semana anterior. Se só um dos dois for atípico
+  /// (ex.: segunda normal x segunda de feriado), recua mais semanas até achar um dia do mesmo tipo,
+  /// para a variação não sair distorcida; sem nenhum em 8 semanas, fica a semana anterior.
+  Periodo _periodoDeComparacao(Periodo periodo) {
+    final semanaAnterior = periodo.comparacao();
+    if (periodo.tipo != TipoPeriodo.diario) return semanaAnterior;
+    final atipico = _atipico(periodo.inicioIso);
+    var candidato = semanaAnterior;
+    for (var i = 0; i < 8; i++) {
+      if (_atipico(candidato.inicioIso) == atipico) return candidato;
+      candidato = candidato.comparacao();
+    }
+    return semanaAnterior;
+  }
+
   void _trocarTipo(TipoPeriodo tipo) {
     final ultima = _ultimaData;
     setState(() {
@@ -177,8 +198,9 @@ class _TelaVisaoGeralEstado extends State<TelaVisaoGeral> {
       final alturaLinha = ((limites.maxHeight - 420) / 2).clamp(260.0, 600.0);
 
       final periodo = _periodo;
+      final periodoComparado = periodo == null ? null : _periodoDeComparacao(periodo);
       final resumo = dias == null || periodo == null ? null : ResumoPeriodo.de(dias, periodo);
-      final comparado = dias == null || periodo == null ? null : ResumoPeriodo.de(dias, periodo.comparacao());
+      final comparado = dias == null || periodoComparado == null ? null : ResumoPeriodo.de(dias, periodoComparado);
 
       return SingleChildScrollView(
           padding: EdgeInsets.symmetric(horizontal: margem, vertical: celular ? Esp.s4 : Esp.s5),
@@ -195,7 +217,7 @@ class _TelaVisaoGeralEstado extends State<TelaVisaoGeral> {
                         'do Smart Report forem processados.')
                   else ...[
                     SizedBox(height: celular ? Esp.s4 : Esp.s5),
-                    _cartoes(resumo, comparado, largura),
+                    _cartoes(resumo, comparado, periodoComparado, largura),
                     SizedBox(height: celular ? Esp.s4 : Esp.s5),
                     _graficos(resumo, largura, alturaLinha),
                   ],
@@ -300,8 +322,11 @@ class _TelaVisaoGeralEstado extends State<TelaVisaoGeral> {
 
   // ==================== INDICADORES ====================
 
-  Widget _cartoes(ResumoPeriodo? r, ResumoPeriodo? anterior, double largura) {
-    final comparacao = 'vs ${_tipo.comparacao}';
+  Widget _cartoes(ResumoPeriodo? r, ResumoPeriodo? anterior, Periodo? periodoComparado, double largura) {
+    // No diário mostra qual dia entrou na comparação (pode ter recuado mais de uma semana)
+    final comparacao = _tipo == TipoPeriodo.diario && periodoComparado != null
+        ? 'vs ${periodoComparado.rotulo.replaceFirst(RegExp(r'/\d{4}$'), '')}'
+        : 'vs ${_tipo.comparacao}';
     final celular = largura < Larguras.sm;
 
     // Período com parte dos dias sem dado (ex.: semana atual, passageiros que chegam depois)
@@ -421,6 +446,19 @@ class _TelaVisaoGeralEstado extends State<TelaVisaoGeral> {
     );
   }
 
+  /// Na TV o cartão tem altura fixa: reduz o conteúdo para caber em vez de cortar a última barra
+  /// (com "viagens não realizadas" e os três turnos, ele passa da altura em 1920x1080)
+  Widget _caberNaAltura(bool alturaFixa, Widget conteudo) {
+    if (!alturaFixa) return conteudo;
+    return LayoutBuilder(
+      builder: (context, limites) => FittedBox(
+        fit: BoxFit.scaleDown,
+        alignment: Alignment.topLeft,
+        child: SizedBox(width: limites.maxWidth, child: conteudo),
+      ),
+    );
+  }
+
   Widget _graficos(ResumoPeriodo? r, double largura, double alturaLinha) {
     final largo = largura >= Larguras.lg;
     if (r == null) {
@@ -470,11 +508,14 @@ class _TelaVisaoGeralEstado extends State<TelaVisaoGeral> {
       altura: alturaLinha1,
       construir: (_) => r.cumprimento == null
           ? const SemDado()
-          : BarrasTurnos(
-              cumprimento: r.cumprimento,
-              realizadas: r.viagensRealizadas,
-              programadas: r.viagensProgramadas,
-              turnos: turnos ?? const [],
+          : _caberNaAltura(
+              largo,
+              BarrasTurnos(
+                cumprimento: r.cumprimento,
+                realizadas: r.viagensRealizadas,
+                programadas: r.viagensProgramadas,
+                turnos: turnos ?? const [],
+              ),
             ),
     );
 

@@ -2,13 +2,12 @@
   "name": "projetobus-backend",
   "version": "1.0.0",
   "description": "Backend do sistema PROJETOBUS - Operações de ônibus",
-  "main": "src/servidor.js",
+  "main": "servidor.js",
   "scripts": {
-    "start": "node src/servidor.js",
-    "dev": "node --watch src/servidor.js",
-    "criar-usuario": "node src/scripts/criarUsuario.js",
-    "importar-dados": "node src/scripts/importarDados.js",
-    "test": "node --test test/leitorRelatorios.test.js"
+    "start": "node servidor.js",
+    "dev": "node --watch servidor.js",
+    "criar-usuario": "node criarUsuario.js",
+    "importar-dados": "node importarDados.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

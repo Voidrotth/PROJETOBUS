@@ -1,15 +1,15 @@
 const express = require('express');
 const ExcelJS = require('exceljs');
 const roteador = express.Router();
-const IndicadorDiario = require('../modelos/IndicadorDiario');
-const ImportacaoDados = require('../modelos/ImportacaoDados');
-const Feriado = require('../modelos/Feriado');
-const ViagemRealizada = require('../modelos/ViagemRealizada');
-const ViagemNaoCumprida = require('../modelos/ViagemNaoCumprida');
-const { salvarArquivo, processarDados } = require('../servicos/servicoIngestao');
-const { autenticar, exigirPapel } = require('../middlewares/autenticacao');
-const { rota, ErroHttp } = require('../middlewares/tratarErro');
-const { emitirParaPainel } = require('../configuracao/tempoReal');
+const IndicadorDiario = require('./IndicadorDiario');
+const ImportacaoDados = require('./ImportacaoDados');
+const Feriado = require('./Feriado');
+const ViagemRealizada = require('./ViagemRealizada');
+const ViagemNaoCumprida = require('./ViagemNaoCumprida');
+const { salvarArquivo, processarDados } = require('./servicoIngestao');
+const { autenticar, exigirPapel } = require('./autenticacao');
+const { rota, ErroHttp } = require('./tratarErro');
+const { emitirParaPainel } = require('./tempoReal');
 
 roteador.use(autenticar);
 // A TV só lê os indicadores (GET /); o resto é da administração

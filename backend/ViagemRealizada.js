@@ -1,7 +1,6 @@
 const mongoose = require('mongoose');
 
 // Uma viagem do relatório "Viagens" do Smart Report (ou, se improdutiva, a km improdutiva do veículo no dia).
-// Não confundir com Viagem (viagem aberta pelo motorista no aplicativo).
 const esquemaViagemRealizada = new mongoose.Schema({
   data: { type: String, required: true }, // dia operacional AAAA-MM-DD (viagem depois da meia-noite fica no dia anterior)
   linha: { type: String, default: null }, // nulo nas improdutivas

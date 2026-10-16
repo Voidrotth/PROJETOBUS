@@ -5,16 +5,14 @@ const http = require('http');
 const path = require('path');
 const express = require('express');
 const cors = require('cors');
-const conectarBanco = require('./configuracao/banco');
-const { iniciarTempoReal } = require('./configuracao/tempoReal');
+const conectarBanco = require('./banco');
+const { iniciarTempoReal } = require('./tempoReal');
 
 // Importar rotas
-const rotasOperacao = require('./rotas/rotasOperacao');
-const rotasPainel = require('./rotas/rotasPainel');
-const rotasAuth = require('./rotas/rotasAuth');
-const rotasUsuarios = require('./rotas/rotasUsuarios');
-const rotasVeiculos = require('./rotas/rotasVeiculos');
-const rotasIndicadores = require('./rotas/rotasIndicadores');
+const rotasAuth = require('./rotasAuth');
+const rotasUsuarios = require('./rotasUsuarios');
+const rotasVeiculos = require('./rotasVeiculos');
+const rotasIndicadores = require('./rotasIndicadores');
 
 const app = express();
 const PORTA = process.env.PORT || 3000;
@@ -24,8 +22,6 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
 // Rotas da API
-app.use('/api/operacoes', rotasOperacao);
-app.use('/api/painel', rotasPainel);
 app.use('/api/auth', rotasAuth);
 app.use('/api/usuarios', rotasUsuarios);
 app.use('/api/veiculos', rotasVeiculos);
@@ -42,7 +38,7 @@ app.get('/api/saude', (req, res) => {
 
 // Painel web (build do Flutter) no mesmo endereço da API, quando já foi compilado
 // (cd frontend && flutter build web).
-const PASTA_PAINEL = path.join(__dirname, '../../frontend/build/web');
+const PASTA_PAINEL = path.join(__dirname, '../frontend/build/web');
 if (fs.existsSync(PASTA_PAINEL)) {
   app.use(express.static(PASTA_PAINEL));
   app.get(/^(?!\/api\/|\/socket\.io\/).*/, (req, res) => res.sendFile(path.join(PASTA_PAINEL, 'index.html')));

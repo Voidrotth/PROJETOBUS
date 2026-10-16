@@ -41,6 +41,9 @@ void main() {
     expect(find.text('Seg, 14/09/2026'), findsOneWidget);
     expect(find.text('dados até 14/09/2026'), findsOneWidget);
     expect(find.text('10.058 km'), findsOneWidget);
+    // 07/09 (feriado, programação reduzida) não entra na comparação da segunda 14/09: vai para 31/08
+    expect(find.text('-0,4% vs Seg, 31/08'), findsOneWidget);
+    expect(find.textContaining('vs Seg, 07/09'), findsNothing);
     // Receita de catraca não vem nos relatórios: aparece como sem dado, nunca como zero
     expect(find.textContaining('receita de catraca sem dado'), findsOneWidget);
     expect(find.text('Crédito circulante sem alerta'), findsOneWidget);

@@ -69,7 +69,7 @@ Abra **`PROJETOBUS\backend\.env`** no Bloco de Notas e preencha:
 | `PORT` | porta do sistema (padrão `3000`) |
 | `TV_CHAVE` | um texto longo e aleatório: é a "senha" da TV, que entra sem login (veja "Ligar a TV") |
 
-As outras variáveis (`IA_MODELO`, `FUSO_OPERACAO`, `DADOS_PASTA`) já vêm prontas.
+As outras variáveis (`IA_MODELO`, `DADOS_PASTA`) já vêm prontas.
 
 - **Porta:** todos os endereços deste README usam a porta `3000`. Se você mudou o `PORT`, troque `3000`
   pela sua porta em todos eles.
@@ -87,10 +87,10 @@ Todos os comandos abaixo são rodados **dentro da pasta `PROJETOBUS\backend`**. 
 O formato do comando é:
 
 ```
-npm run criar-usuario -- <usuário> <senha> "<nome>" <papel>
+npm run criar-usuario -- <usuário> <senha> "<nome>"
 ```
 
-- Use o papel **`admin`**. O dashboard só aceita administradores (e a TV, pela chave).
+- O usuário criado é sempre administrador. O dashboard só aceita administradores (e a TV, pela chave).
 - A senha precisa ter pelo menos 6 caracteres.
 - O usuário não pode repetir. Se aparecer `Já existe um usuário com este e-mail`, escolha outro nome de
   usuário.
@@ -98,7 +98,7 @@ npm run criar-usuario -- <usuário> <senha> "<nome>" <papel>
 ## Administrador (painel)
 
 ```
-npm run criar-usuario -- pedro "minhasenha" "Pedro" admin
+npm run criar-usuario -- pedro "minhasenha" "Pedro"
 ```
 
 No painel, o login será `pedro` com a senha `minhasenha`.
@@ -184,7 +184,7 @@ minutos. Se o servidor cair, ela tenta de novo sozinha.
 
 # Importar os relatórios do Smart Report
 
-1. Crie a pasta `PROJETOBUS\dados\`. Ela não vem no repositório porque os dados são reais.
+1. Crie a pasta `PROJETOBUS\esquecidos\dados\` (ou aponte `DADOS_PASTA` no `.env`). Ela não vem no repositório porque os dados são reais.
 2. Coloque nela os arquivos HTML do Smart Report.
 3. Na pasta `PROJETOBUS\backend`, rode:
 
@@ -207,7 +207,7 @@ O dashboard da TV é só a **Visão Geral**. As telas do painel antigo continuam
 
 | Tela | O que faz | Enquanto isso, use |
 |---|---|---|
-| Frota (`frota\tela_cadastros_frota.dart`) | cadastro de ônibus e de motoristas com matrícula | `npm run criar-usuario` |
+| Frota (`frota\tela_cadastros_frota.dart`) | cadastro de ônibus | — |
 | Enviar dados (`tela_envio_dados.dart`) | envio dos relatórios pelo navegador | `npm run importar-dados` |
 | Verificação (`tela_verificacao.dart`) | conferência detalhada dos relatórios, feriados, exportação Excel/CSV | — |
 | Operação (`tela_operacao.dart`) | viagens por linha, horário e veículo | — |
@@ -231,17 +231,8 @@ troque o conteúdo de `frontend\lib\componentes\logo.dart` por um `Image.asset`.
 
 # Testes
 
-Backend (leitura dos relatórios), na pasta `PROJETOBUS\backend`:
-
-```
-npm test
-```
-
-Frontend (períodos, cálculo dos indicadores e telas), na pasta `PROJETOBUS\frontend`:
-
-```
-flutter test
-```
+Os testes ficam fora do projeto, em `esquecidos/backend-test/` e `esquecidos/frontend-test/`.
+Para rodar, copie de volta para `backend/test/` / `frontend/test/` e use `node --test test/` ou `flutter test`.
 
 ---
 
@@ -257,7 +248,7 @@ npm install -g pm2
 Para iniciar, a partir da pasta `PROJETOBUS`:
 
 ```
-pm2 start backend/src/servidor.js --name projetobus --cwd backend
+pm2 start backend/servidor.js --name projetobus --cwd backend
 ```
 
 Comandos do dia a dia:
@@ -277,6 +268,6 @@ Comandos do dia a dia:
    `cd PROJETOBUS\backend` → `copy .env.example .env` → `npm install` →
    `cd ..\frontend` → `flutter pub get` → `flutter build web`
 3. Configurar `PROJETOBUS\backend\.env` (`MONGODB_URI`, `JWT_SEGREDO`, `TV_CHAVE` e `PORT`).
-4. Criar um administrador: `cd ..\backend` → `npm run criar-usuario -- pedro "minhasenha" "Pedro" admin`
+4. Criar um administrador: `cd ..\backend` → `npm run criar-usuario -- pedro "minhasenha" "Pedro"`
 5. Iniciar o backend: `npm run dev`
 6. Na TV, abrir **http://ENDERECO_DO_SERVIDOR:3000/?tv=SUA_TV_CHAVE** em tela cheia (`F11`).

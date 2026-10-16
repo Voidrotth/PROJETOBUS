@@ -1,9 +1,9 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const roteador = express.Router();
-const Usuario = require('../modelos/Usuario');
-const { gerarToken, autenticar } = require('../middlewares/autenticacao');
-const { rota, ErroHttp } = require('../middlewares/tratarErro');
+const Usuario = require('./Usuario');
+const { gerarToken, autenticar } = require('./autenticacao');
+const { rota, ErroHttp } = require('./tratarErro');
 
 // POST /api/auth/login
 // Recebe { email, senha } e devolve { token, usuario }
@@ -11,10 +11,10 @@ roteador.post('/login', rota(async (req, res) => {
   const { email, senha } = req.body;
   if (!email || !senha) throw new ErroHttp(400, 'Informe usuário e senha');
 
-  // "email" é o campo de usuário da tela: aceita o e-mail/usuário ou a matrícula do motorista
-  const usuarioInformado = String(email).trim();
+  // "email" é o campo de usuário da tela (e-mail ou nome de usuário); só administradores entram
   const usuario = await Usuario.findOne({
-    $or: [{ email: usuarioInformado.toLowerCase() }, { matricula: usuarioInformado }],
+    email: String(email).trim().toLowerCase(),
+    papel: 'admin',
     ativo: true
   }).select('+senhaHash');
   if (!usuario || !(await bcrypt.compare(String(senha), usuario.senhaHash))) {

@@ -57,20 +57,13 @@ class ServicoApi {
     await Sessao.entrar(dados['token'], Map<String, dynamic>.from(dados['usuario']));
   }
 
-  // ==================== FROTA (VEÍCULOS E MOTORISTAS) ====================
+  // ==================== FROTA (VEÍCULOS) ====================
 
   static Future<List<Map<String, dynamic>>> listarVeiculos() async =>
       _lista(await _requisitar('GET', '/veiculos'));
 
   static Future<Map<String, dynamic>> salvarVeiculo(Map<String, dynamic> dados, {String? id}) async =>
       await _requisitar(id == null ? 'POST' : 'PUT', id == null ? '/veiculos' : '/veiculos/$id', corpo: dados);
-
-  static Future<List<Map<String, dynamic>>> listarMotoristas() async =>
-      _lista(await _requisitar('GET', '/usuarios?papel=motorista'));
-
-  static Future<Map<String, dynamic>> salvarUsuario(Map<String, dynamic> dados, {String? id}) async =>
-      await _requisitar(id == null ? 'POST' : 'PUT', id == null ? '/usuarios' : '/usuarios/$id', corpo: dados);
-
 
   // ==================== VERIFICAÇÃO (RELATÓRIOS DO VERIFICADOR) ====================
 
@@ -134,16 +127,6 @@ class ServicoApi {
   static Future<Map<String, dynamic>?> ultimaImportacaoDados() async =>
       await _requisitar('GET', '/indicadores/importacao');
 
-  // ==================== PAINEL ====================
-
-  static Future<Map<String, dynamic>> buscarPainel() async {
-    final resposta = await http.get(Uri.parse('$urlBase/painel/resumo'));
-    if (resposta.statusCode == 200) {
-      return jsonDecode(resposta.body);
-    }
-    throw Exception('Erro ao carregar painel');
-  }
-
   // Usa a mensagem de erro enviada pelo backend ({"erro": "..."}), se houver
   static String _mensagemDeErro(http.Response resposta, String padrao) {
     try {
@@ -151,28 +134,5 @@ class ServicoApi {
       if (corpo is Map && corpo['erro'] is String) return corpo['erro'];
     } catch (_) {}
     return padrao;
-  }
-
-  // ==================== OPERAÇÕES ====================
-
-  static Future<Map<String, dynamic>> criarOperacao(Map<String, dynamic> dados) async {
-    final resposta = await http.post(
-      Uri.parse('$urlBase/operacoes'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(dados),
-    );
-    if (resposta.statusCode == 201) {
-      return jsonDecode(resposta.body);
-    }
-    throw Exception('Erro ao cadastrar operação');
-  }
-
-  static Future<List<Map<String, dynamic>>> buscarOperacoes() async {
-    final resposta = await http.get(Uri.parse('$urlBase/operacoes'));
-    if (resposta.statusCode == 200) {
-      final List<dynamic> dados = jsonDecode(resposta.body);
-      return dados.cast<Map<String, dynamic>>();
-    }
-    throw Exception('Erro ao carregar operações');
   }
 }

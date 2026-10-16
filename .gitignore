@@ -1,8 +1,9 @@
 # Material de consulta (repositório das aulas, não faz parte do projeto)
 aquivosparaconsultar/
+esquecidos/aquivosparaconsultar/
 
 # Relatórios reais do Smart Report (dados operacionais, ficam só na máquina)
-/dados/
+esquecidos/dados/
 
 # Dependências
 node_modules/

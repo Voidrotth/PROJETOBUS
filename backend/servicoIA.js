@@ -1,6 +1,6 @@
 const OpenAI = require('openai');
 const { MODELOS } = require('./modelosRelatorios');
-const MapeamentoIA = require('../modelos/MapeamentoIA');
+const MapeamentoIA = require('./MapeamentoIA');
 
 // OpenRouter usa a mesma API da OpenAI, só muda o endereço e o nome do modelo
 const openai = new OpenAI({

@@ -1,5 +1,5 @@
 const { Server } = require('socket.io');
-const { lerToken } = require('../middlewares/autenticacao');
+const { lerToken } = require('./autenticacao');
 
 // Tempo real do painel (administração e TV)
 const SALA_PAINEL = 'painel';

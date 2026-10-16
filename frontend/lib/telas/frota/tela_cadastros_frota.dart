@@ -1,25 +1,12 @@
 import 'package:flutter/material.dart';
 import '../../servicos/servico_api.dart';
 
-/// Cadastro de veículos e motoristas.
+/// Cadastro de veículos.
 class TelaCadastrosFrota extends StatelessWidget {
   const TelaCadastrosFrota({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return const DefaultTabController(
-      length: 2,
-      child: Column(
-        children: [
-          TabBar(tabs: [
-            Tab(icon: Icon(Icons.directions_bus), text: 'Veículos'),
-            Tab(icon: Icon(Icons.badge), text: 'Motoristas'),
-          ]),
-          Expanded(child: TabBarView(children: [_ListaVeiculos(), _ListaMotoristas()])),
-        ],
-      ),
-    );
-  }
+  Widget build(BuildContext context) => const _ListaVeiculos();
 }
 
 /// Lista genérica com carregamento, erro e botão de adicionar
@@ -115,9 +102,6 @@ class _ListaVeiculos extends StatelessWidget {
         title: Text('${veiculo['prefixo'] ?? ''} ${veiculo['placa']}'.trim()),
         subtitle: Text([
           '${veiculo['marca'] ?? ''} ${veiculo['modelo'] ?? ''}'.trim(),
-          'Hodômetro ${veiculo['hodometro'] ?? 0} km',
-          if (veiculo['consumoKmPorLitro'] != null) '${veiculo['consumoKmPorLitro']} km/L',
-          if (veiculo['emUso'] == true) 'Em viagem',
           if (veiculo['ativo'] == false) 'Inativo',
         ].where((s) => s.isNotEmpty).join(' · ')),
         onTap: () async {
@@ -135,10 +119,8 @@ class _ListaVeiculos extends StatelessWidget {
       'modelo': 'Modelo',
       'ano': 'Ano',
       'capacidade': 'Capacidade (passageiros)',
-      'hodometro': 'Hodômetro (km)',
-      'consumoKmPorLitro': 'Consumo médio (km por litro, ex.: 2,5)',
     };
-    const numericos = {'ano', 'capacidade', 'hodometro', 'consumoKmPorLitro'};
+    const numericos = {'ano', 'capacidade'};
     return _formulario(
       context,
       titulo: veiculo == null ? 'Novo veículo' : 'Editar veículo',
@@ -152,55 +134,6 @@ class _ListaVeiculos extends StatelessWidget {
   }
 }
 
-class _ListaMotoristas extends StatelessWidget {
-  const _ListaMotoristas();
-
-  @override
-  Widget build(BuildContext context) {
-    return _ListaCadastro(
-      carregar: ServicoApi.listarMotoristas,
-      textoVazio: 'Nenhum motorista cadastrado',
-      abrirFormulario: _abrirFormulario,
-      item: (context, motorista, recarregar) => ListTile(
-        leading: Icon(Icons.badge, color: motorista['ativo'] == false ? Colors.grey : Colors.blue),
-        title: Text(motorista['nome'] ?? ''),
-        subtitle: Text([
-          if ((motorista['matricula'] ?? '').isNotEmpty) 'Matrícula ${motorista['matricula']}',
-          if ((motorista['cnh'] ?? '').isNotEmpty) 'CNH ${motorista['cnh']}',
-          if (motorista['ativo'] == false) 'Inativo',
-        ].join(' · ')),
-        onTap: () async {
-          if (await _abrirFormulario(context, motorista)) recarregar();
-        },
-      ),
-    );
-  }
-
-  static Future<bool> _abrirFormulario(BuildContext context, Map<String, dynamic>? motorista) async {
-    return _formulario(
-      context,
-      titulo: motorista == null ? 'Novo motorista' : 'Editar motorista',
-      campos: {
-        'nome': 'Nome',
-        'matricula': 'Matrícula (login; a mesma dos relatórios)',
-        'senha': motorista == null ? 'Senha (mínimo 6)' : 'Nova senha (deixe vazio para manter)',
-        'email': 'E-mail (opcional)',
-        'telefone': 'Telefone',
-        'cnh': 'CNH',
-      },
-      obrigatorios: {'nome', 'matricula', if (motorista == null) 'senha'},
-      senhas: const {'senha'},
-      valores: motorista,
-      ativo: motorista?['ativo'] ?? true,
-      salvar: (dados) {
-        if ((dados['senha'] ?? '').isEmpty) dados.remove('senha');
-        if ((dados['email'] ?? '').isEmpty) dados.remove('email'); // sem e-mail: entra pela matrícula
-        return ServicoApi.salvarUsuario({...dados, 'papel': 'motorista'}, id: motorista?['_id']);
-      },
-    );
-  }
-}
-
 /// Diálogo de formulário simples a partir de um mapa campo → rótulo
 Future<bool> _formulario(
   BuildContext context, {
@@ -209,14 +142,13 @@ Future<bool> _formulario(
   required Future<Map<String, dynamic>> Function(Map<String, dynamic>) salvar,
   Set<String> numericos = const {},
   Set<String> obrigatorios = const {},
-  Set<String> senhas = const {},
   Map<String, dynamic>? valores,
   bool ativo = true,
 }) async {
   final chave = GlobalKey<FormState>();
   final controladores = {
     for (final campo in campos.keys)
-      campo: TextEditingController(text: senhas.contains(campo) ? '' : '${valores?[campo] ?? ''}'),
+      campo: TextEditingController(text: '${valores?[campo] ?? ''}'),
   };
   var estaAtivo = ativo;
   var salvando = false;
@@ -241,7 +173,6 @@ Future<bool> _formulario(
                       child: TextFormField(
                         controller: controladores[campo],
                         decoration: InputDecoration(labelText: campos[campo], border: const OutlineInputBorder()),
-                        obscureText: senhas.contains(campo),
                         keyboardType: numericos.contains(campo) ? TextInputType.number : null,
                         validator: (v) {
                           final texto = v?.trim() ?? '';

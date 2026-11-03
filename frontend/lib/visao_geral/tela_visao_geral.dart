@@ -194,8 +194,8 @@ class _TelaVisaoGeralEstado extends State<TelaVisaoGeral> {
       final margem = celular ? Esp.s4 : Esp.s8;
       final largura = (limites.maxWidth - 2 * margem).clamp(0.0, double.infinity);
       // Em 1920 × 1080 tudo cabe numa tela só: as duas linhas de gráficos dividem a altura que sobra
-      // ponytail: altura do cabeçalho e dos cards estimada (~420 px); ajuste aqui se a tela cortar
-      final alturaLinha = ((limites.maxHeight - 420) / 2).clamp(260.0, 600.0);
+      // ponytail: altura do cabeçalho e dos cards estimada (~320 px); ajuste aqui se a tela cortar
+      final alturaLinha = ((limites.maxHeight - 320) / 2).clamp(260.0, 600.0);
 
       final periodo = _periodo;
       final periodoComparado = periodo == null ? null : _periodoDeComparacao(periodo);
@@ -239,50 +239,52 @@ class _TelaVisaoGeralEstado extends State<TelaVisaoGeral> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Wrap(
-          spacing: Esp.s8,
-          runSpacing: Esp.s3,
+        // Tudo numa linha só na TV; em tela estreita quebra em mais linhas
+        SizedBox(width: double.infinity, child: Wrap(
+          spacing: Esp.s6,
+          runSpacing: Esp.s2,
           crossAxisAlignment: WrapCrossAlignment.center,
           alignment: WrapAlignment.spaceBetween,
           children: [
             const Logo(altura: 44),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            // Só mostra qual período está na tela; quem troca é o cronômetro
+            FittedBox(fit: BoxFit.scaleDown, child: SeletorPeriodo(selecionado: _tipo)),
+            Text(periodo?.rotulo ?? '', style: Estilos.tituloPagina),
+            Text('próximo: ${proximo.nome} em ${_restante}s', style: Estilos.tag),
+            Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                // Só mostra qual período está na tela; quem troca é o cronômetro
-                FittedBox(fit: BoxFit.scaleDown, child: SeletorPeriodo(selecionado: _tipo)),
-                const SizedBox(height: Esp.s1),
-                Text(periodo?.rotulo ?? '', style: Estilos.tituloPagina),
+                const Text('trocar a cada', style: Estilos.tag),
+                IconButton(
+                  onPressed: () => _definirTempo(_segundosPorPeriodo - _passoSegundos),
+                  icon: const Icon(Icons.remove),
+                  tooltip: 'Menos tempo',
+                ),
+                Text('${_segundosPorPeriodo}s', style: Estilos.corpo.copyWith(fontWeight: FontWeight.w600)),
+                IconButton(
+                  onPressed: () => _definirTempo(_segundosPorPeriodo + _passoSegundos),
+                  icon: const Icon(Icons.add),
+                  tooltip: 'Mais tempo',
+                ),
               ],
             ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
+            Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Text(DateFormat('HH:mm').format(agora), style: Estilos.valor),
-                Text('${diaDaSemana(agora)}, ${dataBr(agora)}', style: Estilos.pequeno),
-                if (ultima != null) Text('dados até ${dataBr(ultima)}', style: Estilos.tag),
+                const SizedBox(width: Esp.s3),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text('${diaDaSemana(agora)}, ${dataBr(agora)}', style: Estilos.pequeno),
+                    if (ultima != null) Text('dados até ${dataBr(ultima)}', style: Estilos.tag),
+                  ],
+                ),
               ],
             ),
           ],
-        ),
-        const SizedBox(height: Esp.s3),
-        Row(
-          children: [
-            Expanded(child: Text('próximo: ${proximo.nome} em ${_restante}s', style: Estilos.tag)),
-            const Text('trocar a cada', style: Estilos.tag),
-            IconButton(
-              onPressed: () => _definirTempo(_segundosPorPeriodo - _passoSegundos),
-              icon: const Icon(Icons.remove),
-              tooltip: 'Menos tempo',
-            ),
-            Text('${_segundosPorPeriodo}s', style: Estilos.corpo.copyWith(fontWeight: FontWeight.w600)),
-            IconButton(
-              onPressed: () => _definirTempo(_segundosPorPeriodo + _passoSegundos),
-              icon: const Icon(Icons.add),
-              tooltip: 'Mais tempo',
-            ),
-          ],
-        ),
+        )),
+        const SizedBox(height: Esp.s2),
         LinearProgressIndicator(
           value: 1 - _restante / _segundosPorPeriodo,
           minHeight: 3,

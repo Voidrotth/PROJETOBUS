@@ -250,6 +250,9 @@ Para iniciar, a partir da pasta `PROJETOBUS`:
 
 ```
 pm2 start backend/servidor.js --name projetobus --cwd backend
+
+
+"C:\Program Files (x86)\cloudflared\cloudflared.exe" tunnel --url http://localhost:3100
 ```
 
 Comandos do dia a dia:

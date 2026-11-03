@@ -28,12 +28,12 @@ const segundosPorPeriodoPadrao = 60;
 const _passoSegundos = 10;
 const _minimoSegundos = 10;
 const _maximoSegundos = 600;
-const _chaveSegundos = 'tv_segundos_por_periodo';
+const _chaveSegundos = 'segundos_por_periodo';
 
 /// Recarrega os dados a cada 5 min (além do aviso em tempo real); também tenta de novo se cair
 const _segundosEntreRecargas = 300;
 
-/// Visão Geral da operação para a TV da SEMOB (ligada 24 h, sem botões): 5 indicadores e 4
+/// Visão Geral da operação para o computador da SEMOB (ligado 24 h, sem botões): 5 indicadores e 4
 /// gráficos do período mais recente, trocando sozinho Diário → Semanal → Quinzenal → Mensal a cada
 /// minuto. Os dados são os dos relatórios do Smart Report (GET /api/indicadores); a série inteira
 /// vem numa chamada só e os períodos são recortados aqui.
@@ -72,7 +72,7 @@ class _TelaVisaoGeralEstado extends State<TelaVisaoGeral> {
     _lerTempoSalvo();
   }
 
-  // O tempo escolhido fica salvo no navegador da TV e volta depois de reiniciar
+  // O tempo escolhido fica salvo no navegador do computador e volta depois de reiniciar
   Future<void> _lerTempoSalvo() async {
     try {
       final salvo = (await SharedPreferences.getInstance()).getInt(_chaveSegundos);
@@ -193,8 +193,8 @@ class _TelaVisaoGeralEstado extends State<TelaVisaoGeral> {
       final celular = limites.maxWidth < Larguras.sm;
       final margem = celular ? Esp.s4 : Esp.s8;
       final largura = (limites.maxWidth - 2 * margem).clamp(0.0, double.infinity);
-      // Na TV tudo cabe numa tela só: as duas linhas de gráficos dividem a altura que sobra
-      // ponytail: altura do cabeçalho e dos cards estimada (~420 px); ajuste aqui se a TV cortar
+      // Em 1920 × 1080 tudo cabe numa tela só: as duas linhas de gráficos dividem a altura que sobra
+      // ponytail: altura do cabeçalho e dos cards estimada (~420 px); ajuste aqui se a tela cortar
       final alturaLinha = ((limites.maxHeight - 420) / 2).clamp(260.0, 600.0);
 
       final periodo = _periodo;
@@ -446,7 +446,7 @@ class _TelaVisaoGeralEstado extends State<TelaVisaoGeral> {
     );
   }
 
-  /// Na TV o cartão tem altura fixa: reduz o conteúdo para caber em vez de cortar a última barra
+  /// Em tela cheia o cartão tem altura fixa: reduz o conteúdo para caber em vez de cortar a última barra
   /// (com "viagens não realizadas" e os três turnos, ele passa da altura em 1920x1080)
   Widget _caberNaAltura(bool alturaFixa, Widget conteudo) {
     if (!alturaFixa) return conteudo;

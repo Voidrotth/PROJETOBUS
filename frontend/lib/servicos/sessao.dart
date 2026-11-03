@@ -14,16 +14,16 @@ class Sessao {
   static VoidCallback? aoExpirar;
 
   static bool get logado => token != null;
-  /// Administração ou TV (a TV só lê os indicadores)
-  static bool get podeVerPainel => logado && ['admin', 'tv'].contains(usuario?['papel']);
+  /// Administração ou computador da SEMOB (que só lê os indicadores)
+  static bool get podeVerPainel => logado && ['admin', 'computador'].contains(usuario?['papel']);
   static String get nome => usuario?['nome'] ?? '';
 
   static Future<void> carregar() async {
-    // TV: http://ENDERECO/?tv=CHAVE (TV_CHAVE do .env do backend). Não salva nada no aparelho.
-    final chaveTv = kIsWeb ? Uri.base.queryParameters['tv'] : null;
-    if (chaveTv != null && chaveTv.isNotEmpty) {
-      token = chaveTv;
-      usuario = {'papel': 'tv', 'nome': 'TV'};
+    // Computador da SEMOB: http://ENDERECO/?semob=CHAVE (CHAVE_COMPUTADOR_SEMOB do .env do backend). Não salva nada.
+    final chaveSemob = kIsWeb ? Uri.base.queryParameters['semob'] : null;
+    if (chaveSemob != null && chaveSemob.isNotEmpty) {
+      token = chaveSemob;
+      usuario = {'papel': 'computador', 'nome': 'Computador da SEMOB'};
       return;
     }
     final preferencias = await SharedPreferences.getInstance();

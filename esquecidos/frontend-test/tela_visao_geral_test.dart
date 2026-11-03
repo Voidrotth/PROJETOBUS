@@ -26,7 +26,7 @@ void main() {
     }, cliente);
   }
 
-  testWidgets('TV abre no último dia com dados e troca de período sozinha a cada minuto', (tester) async {
+  testWidgets('painel abre no último dia com dados e troca de período sozinha a cada minuto', (tester) async {
     await abrir(tester, const Size(1920, 1080));
 
     for (final titulo in [
@@ -84,7 +84,7 @@ void main() {
     await tester.tap(find.byTooltip('Menos tempo'));
     await tester.pump();
     expect(find.text('50s'), findsOneWidget);
-    expect((await SharedPreferences.getInstance()).getInt('tv_segundos_por_periodo'), 50);
+    expect((await SharedPreferences.getInstance()).getInt('segundos_por_periodo'), 50);
 
     for (var i = 0; i < 50; i++) {
       await tester.pump(const Duration(seconds: 1));

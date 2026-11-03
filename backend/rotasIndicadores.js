@@ -12,7 +12,7 @@ const { rota, ErroHttp } = require('./tratarErro');
 const { emitirParaPainel } = require('./tempoReal');
 
 roteador.use(autenticar);
-// A TV só lê os indicadores (GET /); o resto é da administração
+// O computador da SEMOB só lê os indicadores (GET /); o resto é da administração
 roteador.use((req, res, next) => (req.method === 'GET' && req.path === '/' ? next() : exigirPapel('admin')(req, res, next)));
 
 const TIPOS_DIA = {

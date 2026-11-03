@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-// Administradores do painel (a TV entra pela chave TV_CHAVE, sem usuário)
+// Administradores do painel (o computador da SEMOB entra pela chave CHAVE_COMPUTADOR_SEMOB, sem usuário)
 const esquemaUsuario = new mongoose.Schema({
   nome: {
     type: String,

@@ -3,7 +3,7 @@
 Painel da Secretaria de Mobilidade Urbana de São Caetano do Sul (SEMOB) que substitui os relatórios
 estáticos recebidos por e-mail.
 
-O dashboard foi feito para ficar numa **TV ligada 24 horas**: não tem botões. Ele mostra quilometragem,
+O dashboard foi feito para ficar aberto no **computador da SEMOB, ligado 24 horas** a uma tela grande, com o navegador em tela cheia: não tem botões. Ele mostra quilometragem,
 viagens, passageiros pagantes, passageiros não pagantes e informações financeiras, com gráficos e
 comparação com o período anterior, e troca sozinho entre **diário, semanal, quinzenal e mensal** a cada
 1 minuto.
@@ -67,7 +67,7 @@ Abra **`PROJETOBUS\backend\.env`** no Bloco de Notas e preencha:
 | `JWT_SEGREDO` | um texto longo e aleatório (é o que mantém os logins válidos) |
 | `OPENROUTER_API_KEY` | chave da OpenRouter (só é usada quando chega um relatório com colunas diferentes) |
 | `PORT` | porta do sistema (padrão `3000`) |
-| `TV_CHAVE` | um texto longo e aleatório: é a "senha" da TV, que entra sem login (veja "Ligar a TV") |
+| `CHAVE_COMPUTADOR_SEMOB` | um texto longo e aleatório: é a "senha" do computador da SEMOB, que entra sem login (veja "Abrir no computador da SEMOB") |
 
 As outras variáveis (`IA_MODELO`, `DADOS_PASTA`) já vêm prontas.
 
@@ -90,7 +90,7 @@ O formato do comando é:
 npm run criar-usuario -- <usuário> <senha> "<nome>"
 ```
 
-- O usuário criado é sempre administrador. O dashboard só aceita administradores (e a TV, pela chave).
+- O usuário criado é sempre administrador. O dashboard só aceita administradores (e o computador da SEMOB, pela chave).
 - A senha precisa ter pelo menos 6 caracteres.
 - O usuário não pode repetir. Se aparecer `Já existe um usuário com este e-mail`, escolha outro nome de
   usuário.
@@ -135,20 +135,20 @@ O Chrome abre sozinho. Depois de alterar o código, aperte `r` no terminal para 
 
 ---
 
-# Ligar a TV
+# Abrir no computador da SEMOB
 
-1. Preencha `TV_CHAVE` no `.env` e reinicie o backend.
-2. No navegador da TV (ou do computador ligado nela), abra:
+1. Preencha `CHAVE_COMPUTADOR_SEMOB` no `.env` e reinicie o backend.
+2. No navegador do computador da SEMOB, abra:
 
-   **http://ENDERECO_DO_SERVIDOR:3000/?tv=SUA_TV_CHAVE**
+   **http://ENDERECO_DO_SERVIDOR:3000/?semob=SUA_CHAVE**
 
 3. Deixe o navegador em tela cheia (`F11`). Não precisa fazer login nem tocar em nada.
 
 - A chave só deixa **ver** os indicadores: não envia relatórios nem altera nada.
-- Quem tem o endereço com a chave vê o dashboard. Se ela vazar, troque `TV_CHAVE` e reinicie o backend.
+- Quem tem o endereço com a chave vê o dashboard. Se ela vazar, troque `CHAVE_COMPUTADOR_SEMOB` e reinicie o backend.
 - Sem a chave, o endereço abre o login, e um administrador vê a mesma tela.
 
-# O que a TV mostra
+# O que o painel mostra
 
 A cada **1 minuto** a tela troca de período, sempre no mais recente que tem dados:
 **Diário → Semanal** (segunda a domingo) **→ Quinzenal** (dias 1 a 15 e 16 ao fim do mês) **→ Mensal** →
@@ -156,7 +156,7 @@ volta ao diário. Uma barra no topo mostra quanto falta para a próxima troca. O
 relógio, a data e até que dia vão os dados ("dados até ...").
 
 Para mudar o tempo de cada período, use os botões **−** e **+** ao lado de "trocar a cada" (de 10 em
-10 segundos, de 10 s a 10 min; o padrão é 60 s). A escolha fica salva no navegador da TV.
+10 segundos, de 10 s a 10 min; o padrão é 60 s). A escolha fica salva no navegador do computador.
 
 A tela mostra:
 
@@ -202,7 +202,7 @@ npm run importar-dados -- --conferir
 
 # Telas fora do menu
 
-O dashboard da TV é só a **Visão Geral**. As telas do painel antigo continuam no código, em
+O dashboard é só a **Visão Geral**. As telas do painel antigo continuam no código, em
 `frontend\lib\telas\`, mas não aparecem:
 
 | Tela | O que faz | Enquanto isso, use |
@@ -267,7 +267,7 @@ Comandos do dia a dia:
 2. Instalar as dependências:
    `cd PROJETOBUS\backend` → `copy .env.example .env` → `npm install` →
    `cd ..\frontend` → `flutter pub get` → `flutter build web`
-3. Configurar `PROJETOBUS\backend\.env` (`MONGODB_URI`, `JWT_SEGREDO`, `TV_CHAVE` e `PORT`).
+3. Configurar `PROJETOBUS\backend\.env` (`MONGODB_URI`, `JWT_SEGREDO`, `CHAVE_COMPUTADOR_SEMOB` e `PORT`).
 4. Criar um administrador: `cd ..\backend` → `npm run criar-usuario -- pedro "minhasenha" "Pedro"`
 5. Iniciar o backend: `npm run dev`
-6. Na TV, abrir **http://ENDERECO_DO_SERVIDOR:3000/?tv=SUA_TV_CHAVE** em tela cheia (`F11`).
+6. No computador da SEMOB, abrir **http://ENDERECO_DO_SERVIDOR:3000/?semob=SUA_CHAVE** em tela cheia (`F11`).

@@ -10,7 +10,7 @@ Future<void> main() async {
   runApp(const AplicativoProjetoBus());
 }
 
-/// Dashboard da SEMOB para a TV. A TV abre com ?tv=CHAVE no endereço e não passa pelo login;
+/// Dashboard para o computador da SEMOB, que abre com ?semob=CHAVE no endereço e não passa pelo login;
 /// a administração pode entrar com usuário e senha e vê a mesma tela.
 class AplicativoProjetoBus extends StatefulWidget {
   const AplicativoProjetoBus({super.key});

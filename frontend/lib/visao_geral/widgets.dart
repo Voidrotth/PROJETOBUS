@@ -3,7 +3,6 @@ import 'package:intl/intl.dart';
 import '../tema/cores.dart';
 import '../tema/espacamento.dart';
 import '../tema/tipografia.dart';
-import 'periodo.dart';
 import 'resumo_periodo.dart';
 
 final _percentual = NumberFormat('#,##0.0%', 'pt_BR');
@@ -24,12 +23,13 @@ class Esqueleto extends StatelessWidget {
       );
 }
 
-/// Botões Diário | Semanal | Quinzenal | Mensal, colados e com borda, como no wireframe
-class SeletorPeriodo extends StatelessWidget {
-  final TipoPeriodo selecionado;
-  final ValueChanged<TipoPeriodo>? aoSelecionar;
+/// Abas coladas e com borda (Diário | Semanal | ... ou Passageiros | Operação | ...): só mostram o que
+/// está na tela, quem troca é o cronômetro
+class Abas extends StatelessWidget {
+  final List<String> nomes;
+  final int selecionado;
 
-  const SeletorPeriodo({super.key, required this.selecionado, this.aoSelecionar});
+  const Abas({super.key, required this.nomes, required this.selecionado});
 
   @override
   Widget build(BuildContext context) {
@@ -38,26 +38,22 @@ class SeletorPeriodo extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          for (final tipo in TipoPeriodo.values) ...[
-            if (tipo != TipoPeriodo.values.first) Container(width: 1, height: 36, color: Cores.texto),
+          for (var i = 0; i < nomes.length; i++) ...[
+            if (i > 0) Container(width: 1, height: 36, color: Cores.texto),
             Semantics(
-              button: true,
-              selected: tipo == selecionado,
-              child: InkWell(
-                onTap: aoSelecionar == null ? null : () => aoSelecionar!(tipo),
-                child: Container(
-                  height: 36,
-                  alignment: Alignment.center,
-                  padding: const EdgeInsets.symmetric(horizontal: Esp.s3),
-                  color: tipo == selecionado ? Cores.primaria : Cores.superficie,
-                  child: Text(
-                    tipo.nome,
-                    style: TextStyle(
-                      fontFamily: Fontes.corpo,
-                      fontSize: 15,
-                      fontWeight: tipo == selecionado ? FontWeight.w600 : FontWeight.w400,
-                      color: tipo == selecionado ? Colors.white : Cores.texto,
-                    ),
+              selected: i == selecionado,
+              child: Container(
+                height: 36,
+                alignment: Alignment.center,
+                padding: const EdgeInsets.symmetric(horizontal: Esp.s3),
+                color: i == selecionado ? Cores.primaria : Cores.superficie,
+                child: Text(
+                  nomes[i],
+                  style: TextStyle(
+                    fontFamily: Fontes.corpo,
+                    fontSize: 15,
+                    fontWeight: i == selecionado ? FontWeight.w600 : FontWeight.w400,
+                    color: i == selecionado ? Colors.white : Cores.texto,
                   ),
                 ),
               ),
@@ -71,6 +67,7 @@ class SeletorPeriodo extends StatelessWidget {
 
 /// Card de um indicador: título, valor, detalhe e variação contra o período de comparação.
 /// [valor] nulo = carregando (mostra o esqueleto do wireframe).
+/// [subirEhBom]: true = alta em verde e queda em vermelho; false = o contrário; null = neutro (azul).
 class CartaoIndicador extends StatelessWidget {
   final String titulo;
   final String? valor;
@@ -78,6 +75,7 @@ class CartaoIndicador extends StatelessWidget {
   final double? variacao;
   final String comparacao;
   final String? cobertura;
+  final bool? subirEhBom;
   final bool compacto;
 
   const CartaoIndicador({
@@ -88,6 +86,7 @@ class CartaoIndicador extends StatelessWidget {
     this.variacao,
     this.comparacao = '',
     this.cobertura,
+    this.subirEhBom = true,
     this.compacto = false,
   });
 
@@ -101,24 +100,24 @@ class CartaoIndicador extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(titulo, style: compacto ? Estilos.tituloCartao.copyWith(fontSize: 14) : Estilos.tituloCartao),
-            const SizedBox(height: Esp.s3),
+            const SizedBox(height: Esp.s2),
             if (carregando) ...[
-              const Esqueleto(largura: 108, altura: 26),
+              const Esqueleto(largura: 160, altura: 56),
               const SizedBox(height: Esp.s3),
-              const Esqueleto(largura: 56, altura: 18),
+              const Esqueleto(largura: 96, altura: 24),
             ] else ...[
               FittedBox(
                 fit: BoxFit.scaleDown,
                 alignment: Alignment.centerLeft,
-                child: Text(valor!, style: Estilos.valor),
+                child: Text(valor!, style: compacto ? Estilos.valor : Estilos.valorDestaque),
               ),
               if (detalhe != null) ...[
                 const SizedBox(height: Esp.s1),
-                Text(detalhe!, style: Estilos.pequeno, maxLines: 3, overflow: TextOverflow.ellipsis),
+                Text(detalhe!, style: Estilos.pequeno, maxLines: 2, overflow: TextOverflow.ellipsis),
               ],
-              const SizedBox(height: Esp.s2),
+              const SizedBox(height: Esp.s3),
               _linhaVariacao(),
-              if (cobertura != null) Text(cobertura!, style: Estilos.tag),
+              if (cobertura != null) ...[const SizedBox(height: Esp.s1), Text(cobertura!, style: Estilos.tag)],
             ],
           ],
         ),
@@ -130,15 +129,32 @@ class CartaoIndicador extends StatelessWidget {
     final v = variacao;
     if (v == null) return const Text('sem comparação', style: Estilos.tag);
     final sobe = v >= 0;
-    final texto = '${sobe ? '+' : ''}${_percentual.format(v)} $comparacao';
+    final bom = subirEhBom == null || v == 0 ? null : sobe == subirEhBom;
+    final (cor, fundo) = switch (bom) {
+      true => (Cores.green700, Cores.green50),
+      false => (Cores.erro, Cores.vermelho50),
+      null => (Cores.primaria, Cores.blue50),
+    };
     return Semantics(
       label: '${sobe ? 'Alta' : 'Queda'} de ${_percentual.format(v.abs())} $comparacao',
       excludeSemantics: true,
       child: Row(
         children: [
-          Icon(sobe ? Icons.arrow_upward : Icons.arrow_downward, size: 13, color: Cores.primaria),
-          const SizedBox(width: Esp.s1),
-          Expanded(child: Text(texto, style: Estilos.tag)),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: Esp.s2, vertical: Esp.s1),
+            decoration: BoxDecoration(color: fundo, borderRadius: BorderRadius.circular(Esp.raio)),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(sobe ? Icons.arrow_upward : Icons.arrow_downward, size: 16, color: cor),
+                const SizedBox(width: Esp.s1),
+                Text('${sobe ? '+' : ''}${_percentual.format(v)}',
+                    style: Estilos.tag.copyWith(fontSize: 15, fontWeight: FontWeight.w700, color: cor)),
+              ],
+            ),
+          ),
+          const SizedBox(width: Esp.s2),
+          Expanded(child: Text(comparacao, style: Estilos.tag, maxLines: 1, overflow: TextOverflow.ellipsis)),
         ],
       ),
     );

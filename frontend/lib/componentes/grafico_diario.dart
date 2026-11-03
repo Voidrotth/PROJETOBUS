@@ -2,9 +2,9 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 /// Cores das séries (ordem fixa: a cor acompanha a série, não a posição no gráfico)
-const corSerie1 = Color(0xFF2A78D6);
-const corSerie2 = Color(0xFFEB6834);
-const corSerie3 = Color(0xFF1BAF7A);
+const corSerie1 = Color(0xFF24305F);
+const corSerie2 = Color(0xFF49A292);
+const corSerie3 = Color(0xFFE08A2E);
 
 const _corGrade = Color(0xFFE1E0D9);
 const _corEixo = Color(0xFFC3C2B7);
@@ -163,7 +163,7 @@ class _Pintor extends CustomPainter {
 
   void _texto(Canvas canvas, String texto, Offset posicao, {bool alinharDireita = false, bool centralizar = false}) {
     final pintor = TextPainter(
-      text: TextSpan(text: texto, style: const TextStyle(fontFamily: 'Inter', fontSize: 11, color: _corApagado)),
+      text: TextSpan(text: texto, style: const TextStyle(fontFamily: 'Poppins', fontSize: 11, color: _corApagado)),
       textDirection: TextDirection.ltr,
     )..layout();
     final dx = alinharDireita ? posicao.dx - pintor.width : (centralizar ? posicao.dx - pintor.width / 2 : posicao.dx);

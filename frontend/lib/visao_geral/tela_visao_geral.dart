@@ -23,18 +23,29 @@ final _percentual = NumberFormat('#,##0.0%', 'pt_BR');
 
 String _ou(double? valor, String Function(double) formatar) => valor == null ? 'sem dado' : formatar(valor);
 
-/// Quanto tempo cada período fica na tela antes de trocar para o próximo (ajustável com − e +)
-const segundosPorPeriodoPadrao = 60;
-const _passoSegundos = 10;
-const _minimoSegundos = 10;
+/// As informações são divididas em telas por assunto, para quem passa na frente da TV ler de longe
+enum TelaPainel {
+  passageiros('Passageiros'),
+  operacao('Operação'),
+  financeiro('Financeiro');
+
+  final String nome;
+  const TelaPainel(this.nome);
+}
+
+/// Quanto tempo cada tela fica antes de trocar para a próxima (ajustável com − e +).
+/// 3 telas × 20 s = cada período continua 1 minuto na TV.
+const segundosPorTelaPadrao = 20;
+const _passoSegundos = 5;
+const _minimoSegundos = 5;
 const _maximoSegundos = 600;
-const _chaveSegundos = 'segundos_por_periodo';
+const _chaveSegundos = 'segundos_por_tela';
 
 /// Recarrega os dados a cada 5 min (além do aviso em tempo real); também tenta de novo se cair
 const _segundosEntreRecargas = 300;
 
-/// Visão Geral da operação para o computador da SEMOB (ligado 24 h, sem botões): 5 indicadores e 4
-/// gráficos, trocando sozinho Diário → Semanal → Quinzenal → Mensal a cada minuto; a cada volta
+/// Visão Geral da operação para o computador da SEMOB (ligado 24 h, sem botões): em cada período passa
+/// pelas telas Passageiros → Operação → Financeiro e depois troca Diário → Semanal → Quinzenal → Mensal; a cada volta
 /// completa passa para o mês seguinte com dados (começa no mais recente e volta ao primeiro). Os dados são os dos relatórios do Smart Report (GET /api/indicadores); a série inteira
 /// vem numa chamada só e os períodos são recortados aqui.
 class TelaVisaoGeral extends StatefulWidget {
@@ -55,6 +66,7 @@ class _TelaVisaoGeralEstado extends State<TelaVisaoGeral> {
   String? _erro;
 
   TipoPeriodo _tipo = TipoPeriodo.diario;
+  TelaPainel _tela = TelaPainel.passageiros;
   Periodo? _periodo;
   /// Mês mostrado no ciclo (índice em _mesesComDados); avança a cada volta completa dos períodos
   int _mes = -1;
@@ -62,8 +74,8 @@ class _TelaVisaoGeralEstado extends State<TelaVisaoGeral> {
   io.Socket? _socket;
   Timer? _relogio;
   int _segundos = 0;
-  int _segundosPorPeriodo = segundosPorPeriodoPadrao;
-  int _restante = segundosPorPeriodoPadrao;
+  int _segundosPorTela = segundosPorTelaPadrao;
+  int _restante = segundosPorTelaPadrao;
 
   @override
   void initState() {
@@ -87,7 +99,7 @@ class _TelaVisaoGeralEstado extends State<TelaVisaoGeral> {
   void _definirTempo(int segundos, {bool salvar = true}) {
     final novo = segundos.clamp(_minimoSegundos, _maximoSegundos);
     setState(() {
-      _segundosPorPeriodo = novo;
+      _segundosPorTela = novo;
       _restante = novo;
     });
     if (salvar) SharedPreferences.getInstance().then((p) => p.setInt(_chaveSegundos, novo)).ignore();
@@ -106,11 +118,16 @@ class _TelaVisaoGeralEstado extends State<TelaVisaoGeral> {
       _restante--;
     });
     if (_restante <= 0) {
-      _restante = _segundosPorPeriodo;
-      final proximo = TipoPeriodo.values[(_tipo.index + 1) % TipoPeriodo.values.length];
-      // Depois do mensal, o ciclo recomeça no mês seguinte (volta ao primeiro depois do último)
-      if (proximo.index == 0 && _mesesComDados.isNotEmpty) _mes = (_mes + 1) % _mesesComDados.length;
-      _trocarTipo(proximo);
+      _restante = _segundosPorTela;
+      final proximaTela = TelaPainel.values[(_tela.index + 1) % TelaPainel.values.length];
+      setState(() => _tela = proximaTela);
+      // Passou por todas as telas: vai para o próximo período
+      if (proximaTela.index == 0) {
+        final proximo = TipoPeriodo.values[(_tipo.index + 1) % TipoPeriodo.values.length];
+        // Depois do mensal, o ciclo recomeça no mês seguinte (volta ao primeiro depois do último)
+        if (proximo.index == 0 && _mesesComDados.isNotEmpty) _mes = (_mes + 1) % _mesesComDados.length;
+        _trocarTipo(proximo);
+      }
     }
     if (_segundos % _segundosEntreRecargas == 0) _carregar(silencioso: true);
   }
@@ -210,9 +227,9 @@ class _TelaVisaoGeralEstado extends State<TelaVisaoGeral> {
       final celular = limites.maxWidth < Larguras.sm;
       final margem = celular ? Esp.s4 : Esp.s8;
       final largura = (limites.maxWidth - 2 * margem).clamp(0.0, double.infinity);
-      // Em 1920 × 1080 tudo cabe numa tela só: as duas linhas de gráficos dividem a altura que sobra
-      // ponytail: altura do cabeçalho e dos cards estimada (~320 px); ajuste aqui se a tela cortar
-      final alturaLinha = ((limites.maxHeight - 320) / 2).clamp(260.0, 600.0);
+      // Na TV a tela não rola: os gráficos ficam com a altura que sobra
+      // ponytail: altura do cabeçalho e dos cards estimada (~400 px); ajuste aqui se a tela cortar
+      final alturaGraficos = (limites.maxHeight - 400).clamp(300.0, 900.0);
 
       final periodo = _periodo;
       final periodoComparado = periodo == null ? null : _periodoDeComparacao(periodo);
@@ -220,10 +237,11 @@ class _TelaVisaoGeralEstado extends State<TelaVisaoGeral> {
       final comparado = dias == null || periodoComparado == null ? null : ResumoPeriodo.de(dias, periodoComparado);
 
       return SingleChildScrollView(
-          padding: EdgeInsets.symmetric(horizontal: margem, vertical: celular ? Esp.s4 : Esp.s5),
-          child: Center(
-            child: SizedBox(
-              width: largura,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: margem, vertical: celular ? Esp.s4 : Esp.s5),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -236,12 +254,13 @@ class _TelaVisaoGeralEstado extends State<TelaVisaoGeral> {
                     SizedBox(height: celular ? Esp.s4 : Esp.s5),
                     _cartoes(resumo, comparado, periodoComparado, largura),
                     SizedBox(height: celular ? Esp.s4 : Esp.s5),
-                    _graficos(resumo, largura, alturaLinha),
+                    _graficos(resumo, largura, alturaGraficos),
                   ],
                 ],
               ),
             ),
-          ),
+          ],
+        ),
       );
     });
   }
@@ -252,34 +271,56 @@ class _TelaVisaoGeralEstado extends State<TelaVisaoGeral> {
     final periodo = _periodo;
     final ultima = _ultimaData;
     final agora = DateTime.now();
-    final proximo = TipoPeriodo.values[(_tipo.index + 1) % TipoPeriodo.values.length];
+    final proximaTela = TelaPainel.values[(_tela.index + 1) % TelaPainel.values.length];
+    final proximo = proximaTela.index == 0
+        ? TipoPeriodo.values[(_tipo.index + 1) % TipoPeriodo.values.length].nome
+        : proximaTela.nome;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Tudo numa linha só na TV; em tela estreita quebra em mais linhas
         SizedBox(width: double.infinity, child: Wrap(
           spacing: Esp.s6,
-          runSpacing: Esp.s2,
+          runSpacing: Esp.s3,
           crossAxisAlignment: WrapCrossAlignment.center,
           alignment: WrapAlignment.spaceBetween,
           children: [
-            const Logo(altura: 44),
-            // Só mostra qual período está na tela; quem troca é o cronômetro
-            FittedBox(fit: BoxFit.scaleDown, child: SeletorPeriodo(selecionado: _tipo)),
-            Text(periodo?.rotulo ?? '', style: Estilos.tituloPagina),
-            Text('próximo: ${proximo.nome} em ${_restante}s', style: Estilos.tag),
+            const Logo(altura: 48),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Abas(nomes: [for (final t in TipoPeriodo.values) t.nome], selecionado: _tipo.index),
+                ),
+                const SizedBox(height: Esp.s1),
+                Text(periodo?.rotulo ?? '', style: Estilos.tituloPagina),
+              ],
+            ),
+            // O assunto da tela: quem olha sabe na hora do que se trata
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Abas(nomes: [for (final t in TelaPainel.values) t.nome], selecionado: _tela.index),
+                ),
+                const SizedBox(height: Esp.s1),
+                Text('próximo: $proximo em ${_restante}s', style: Estilos.tag),
+              ],
+            ),
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 const Text('trocar a cada', style: Estilos.tag),
                 IconButton(
-                  onPressed: () => _definirTempo(_segundosPorPeriodo - _passoSegundos),
+                  onPressed: () => _definirTempo(_segundosPorTela - _passoSegundos),
                   icon: const Icon(Icons.remove),
                   tooltip: 'Menos tempo',
                 ),
-                Text('${_segundosPorPeriodo}s', style: Estilos.corpo.copyWith(fontWeight: FontWeight.w600)),
+                Text('${_segundosPorTela}s', style: Estilos.corpo.copyWith(fontWeight: FontWeight.w600)),
                 IconButton(
-                  onPressed: () => _definirTempo(_segundosPorPeriodo + _passoSegundos),
+                  onPressed: () => _definirTempo(_segundosPorTela + _passoSegundos),
                   icon: const Icon(Icons.add),
                   tooltip: 'Mais tempo',
                 ),
@@ -303,7 +344,7 @@ class _TelaVisaoGeralEstado extends State<TelaVisaoGeral> {
         )),
         const SizedBox(height: Esp.s2),
         LinearProgressIndicator(
-          value: 1 - _restante / _segundosPorPeriodo,
+          value: 1 - _restante / _segundosPorTela,
           minHeight: 3,
           color: Cores.primaria,
           backgroundColor: Cores.secundaria,
@@ -356,7 +397,7 @@ class _TelaVisaoGeralEstado extends State<TelaVisaoGeral> {
     }
 
     CartaoIndicador cartao(String titulo, String campo, String Function(ResumoPeriodo) valor,
-            String? Function(ResumoPeriodo) detalhe) =>
+            String? Function(ResumoPeriodo) detalhe, {bool? subirEhBom = true}) =>
         CartaoIndicador(
           titulo: titulo,
           valor: r == null ? null : valor(r),
@@ -364,69 +405,98 @@ class _TelaVisaoGeralEstado extends State<TelaVisaoGeral> {
           variacao: r == null || anterior == null ? null : r.variacao(anterior, campo),
           comparacao: comparacao,
           cobertura: cobertura(campo),
+          subirEhBom: subirEhBom,
           compacto: celular,
         );
 
-    final cartoes = [
-      cartao(
-        'Quilometragem',
-        'kmTotal',
-        (r) => _ou(r.kmTotal, (v) => '${_inteiro.format(v)} km'),
-        (r) => r.kmTotal == null
-            ? null
-            : 'produtiva ${_inteiro.format(r.kmProdutiva ?? 0)} · improdutiva ${_inteiro.format(r.kmImprodutiva ?? 0)}',
-      ),
-      cartao(
-        'Viagens',
-        'viagensRealizadas',
-        (r) => _ou(r.viagensRealizadas, _inteiro.format),
-        (r) => r.viagensProgramadas == null
-            ? null
-            : 'de ${_inteiro.format(r.viagensProgramadas)} programadas'
-                '${r.cumprimento == null ? '' : ' · ${_percentual.format(r.cumprimento)}'}',
-      ),
-      cartao(
-        'Passageiros Pagantes',
-        'pagantes',
-        (r) => _ou(r.pagantes, _inteiro.format),
-        (r) => r.pagantes == null
-            ? null
-            : 'catraca ${_inteiro.format(r.catraca ?? 0)} · antecipado ${_inteiro.format(r.antecipados ?? 0)}',
-      ),
-      cartao(
-        'Passageiros Não Pagantes',
-        'naoPagantes',
-        (r) => _ou(r.naoPagantes, _inteiro.format),
-        (r) => r.percentualNaoPagantes == null ? null : '${_percentual.format(r.percentualNaoPagantes)} da demanda total',
-      ),
-      cartao(
-        'Informações Financeiras',
-        'receita',
-        (r) => _ou(r.receita, _moeda.format),
-        (r) => r.receita == null
-            ? null
-            : r.receitaCatraca == null
-                ? 'créditos vendidos · receita de catraca sem dado'
-                : 'créditos ${_moeda.format(r.vendas ?? 0)} · catraca ${_moeda.format(r.receitaCatraca)}',
-      ),
-    ];
+    final cartoes = switch (_tela) {
+      TelaPainel.passageiros => [
+          cartao(
+            'Passageiros Pagantes',
+            'pagantes',
+            (r) => _ou(r.pagantes, _inteiro.format),
+            (r) => r.pagantes == null
+                ? null
+                : 'catraca ${_inteiro.format(r.catraca ?? 0)} · antecipado ${_inteiro.format(r.antecipados ?? 0)}',
+          ),
+          cartao(
+            'Passageiros Não Pagantes',
+            'naoPagantes',
+            (r) => _ou(r.naoPagantes, _inteiro.format),
+            (r) => r.percentualNaoPagantes == null
+                ? null
+                : '${_percentual.format(r.percentualNaoPagantes)} da demanda total',
+            subirEhBom: null,
+          ),
+          cartao(
+            'Demanda Total',
+            'passageiros',
+            (r) => _ou(r.passageiros, _inteiro.format),
+            (r) => r.passageiros == null ? null : 'pagantes + não pagantes',
+          ),
+        ],
+      TelaPainel.operacao => [
+          cartao(
+            'Quilometragem',
+            'kmTotal',
+            (r) => _ou(r.kmTotal, (v) => '${_inteiro.format(v)} km'),
+            (r) => r.kmTotal == null
+                ? null
+                : 'produtiva ${_inteiro.format(r.kmProdutiva ?? 0)} · improdutiva ${_inteiro.format(r.kmImprodutiva ?? 0)}',
+            subirEhBom: null,
+          ),
+          cartao(
+            'Viagens',
+            'viagensRealizadas',
+            (r) => _ou(r.viagensRealizadas, _inteiro.format),
+            (r) => r.viagensProgramadas == null
+                ? null
+                : 'de ${_inteiro.format(r.viagensProgramadas)} programadas'
+                    '${r.cumprimento == null ? '' : ' · ${_percentual.format(r.cumprimento)}'}',
+          ),
+        ],
+      TelaPainel.financeiro => [
+          cartao(
+            'Receita',
+            'receita',
+            (r) => _ou(r.receita, _moeda.format),
+            (r) => r.receita == null
+                ? null
+                : r.receitaCatraca == null
+                    ? 'créditos vendidos · receita de catraca sem dado'
+                    : 'créditos ${_moeda.format(r.vendas ?? 0)} · catraca ${_moeda.format(r.receitaCatraca)}',
+          ),
+          cartao(
+            'Créditos Vendidos',
+            'vendas',
+            (r) => _ou(r.vendas, _moeda.format),
+            (r) => r.vendas == null ? null : 'recargas de cartão',
+          ),
+          cartao(
+            'Créditos Validados',
+            'utilizacao',
+            (r) => _ou(r.utilizacao, _moeda.format),
+            (r) => r.utilizacao == null ? null : 'usados na catraca',
+          ),
+        ],
+    };
 
-    // Telas largas: os 5 numa linha, mesma altura
-    if (largura >= 1200) {
+    // Telas largas: todos numa linha, mesma altura
+    if (largura >= Larguras.lg) {
       return IntrinsicHeight(
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             for (var i = 0; i < cartoes.length; i++) ...[
-              if (i > 0) const SizedBox(width: Esp.s6),
+              if (i > 0) const SizedBox(width: Esp.s5),
               Expanded(child: cartoes[i]),
             ],
           ],
         ),
       );
     }
-    // Tablet: 3 + 2; celular: 2 + 2 + 1, a sobra centralizada (wireframe mobile)
-    final colunas = celular ? 2 : 3;
+    // Tablet: até 3 por linha; celular: 2 por linha, a sobra centralizada
+    final colunas = celular ? 2 : cartoes.length.clamp(1, 3);
     final espaco = celular ? Esp.s3 : Esp.s6;
     final larguraCartao = (largura - espaco * (colunas - 1)) / colunas;
     return Wrap(
@@ -478,134 +548,97 @@ class _TelaVisaoGeralEstado extends State<TelaVisaoGeral> {
     );
   }
 
-  Widget _graficos(ResumoPeriodo? r, double largura, double alturaLinha) {
+  Widget _graficos(ResumoPeriodo? r, double largura, double alturaGraficos) {
     final largo = largura >= Larguras.lg;
-    if (r == null) {
-      // Carregando: blocos cinza do wireframe
-      Widget bloco(double altura) => Container(height: altura, color: Cores.esqueleto);
-      if (!largo) return Column(children: [bloco(260), const SizedBox(height: Esp.s4), bloco(260)]);
-      return Column(children: [
-        Row(children: [
-          Expanded(flex: 5, child: bloco(380)),
-          const SizedBox(width: Esp.s5),
-          Expanded(flex: 3, child: bloco(380)),
-        ]),
-        const SizedBox(height: Esp.s10),
-        Row(children: [
-          Expanded(child: bloco(340)),
-          const SizedBox(width: Esp.s6),
-          Expanded(child: bloco(340)),
-        ]),
-      ]);
-    }
+    // Carregando: bloco cinza do wireframe
+    if (r == null) return Container(height: largo ? alturaGraficos : 260, color: Cores.esqueleto);
 
     final datas = _datasDoGrafico(r.periodo);
     final janela = r.periodo.tipo == TipoPeriodo.diario ? ' · 7 dias até o dia escolhido' : '';
-    final alturaLinha1 = largo ? alturaLinha : null;
-    final alturaLinha2 = largo ? alturaLinha : null;
+    final altura = largo ? alturaGraficos : null;
 
-    final passageiros = PainelGrafico(
-      titulo: 'Passageiros por dia',
-      subtitulo: 'Pagantes e não pagantes (gratuidades)$janela',
-      altura: alturaLinha1,
-      construir: (altura) => _graficoDiario(
-        datas,
-        [
-          SerieGrafico('Pagantes', Cores.primaria, _serie(datas, 'pagantes')),
-          SerieGrafico('Não pagantes', Cores.destaque, _serie(datas, 'naoPagantes')),
-        ],
-        _inteiro.format,
-        empilhado: true,
-        altura: altura,
-      ),
-    );
+    switch (_tela) {
+      case TelaPainel.passageiros:
+        return PainelGrafico(
+          titulo: 'Passageiros por dia',
+          subtitulo: 'Pagantes e não pagantes (gratuidades)$janela',
+          altura: altura,
+          construir: (alt) => _graficoDiario(
+            datas,
+            [
+              SerieGrafico('Pagantes', Cores.primaria, _serie(datas, 'pagantes')),
+              SerieGrafico('Não pagantes', Cores.destaque, _serie(datas, 'naoPagantes')),
+            ],
+            _inteiro.format,
+            empilhado: true,
+            altura: alt,
+          ),
+        );
 
-    final turnos = r.turnos;
-    final cumprimento = PainelGrafico(
-      titulo: 'Cumprimento de viagens',
-      subtitulo: 'Realizadas sobre programadas, por turno',
-      altura: alturaLinha1,
-      construir: (_) => r.cumprimento == null
-          ? const SemDado()
-          : _caberNaAltura(
-              largo,
-              BarrasTurnos(
-                cumprimento: r.cumprimento,
-                realizadas: r.viagensRealizadas,
-                programadas: r.viagensProgramadas,
-                turnos: turnos ?? const [],
-              ),
-            ),
-    );
-
-    final quilometragem = PainelGrafico(
-      titulo: 'Quilometragem por dia',
-      subtitulo: 'Produtiva (em linha) e improdutiva (deslocamentos)$janela',
-      altura: alturaLinha2,
-      construir: (altura) => _graficoDiario(
-        datas,
-        [
-          SerieGrafico('Produtiva', Cores.primaria, _serie(datas, 'kmProdutiva')),
-          SerieGrafico('Improdutiva', Cores.blue200, _serie(datas, 'kmImprodutiva')),
-        ],
-        _inteiro.format,
-        empilhado: true,
-        altura: altura,
-      ),
-    );
-
-    final financeiro = PainelGrafico(
-      titulo: 'Venda × validação de créditos',
-      subtitulo: 'Créditos vendidos e validados na catraca$janela',
-      topo: AlertaCirculante(alerta: _alerta),
-      altura: alturaLinha2,
-      construir: (altura) => _graficoDiario(
-        datas,
-        [
-          SerieGrafico('Vendidos', Cores.primaria, _serie(datas, 'vendas')),
-          SerieGrafico('Validados', Cores.destaque, _serie(datas, 'utilizacao')),
-        ],
-        _moeda.format,
-        empilhado: false,
-        altura: altura,
-      ),
-    );
-
-    if (!largo) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          passageiros,
-          const SizedBox(height: Esp.s4),
-          cumprimento,
-          const SizedBox(height: Esp.s4),
-          quilometragem,
-          const SizedBox(height: Esp.s4),
-          financeiro,
-        ],
-      );
-    }
-    // Proporções do wireframe: linha 1 em 5:3, linha 2 em 1:1
-    return Column(
-      children: [
-        Row(
+      case TelaPainel.operacao:
+        final quilometragem = PainelGrafico(
+          titulo: 'Quilometragem por dia',
+          subtitulo: 'Produtiva (em linha) e improdutiva (deslocamentos)$janela',
+          altura: altura,
+          construir: (alt) => _graficoDiario(
+            datas,
+            [
+              SerieGrafico('Produtiva', Cores.primaria, _serie(datas, 'kmProdutiva')),
+              SerieGrafico('Improdutiva', Cores.primariaClara, _serie(datas, 'kmImprodutiva')),
+            ],
+            _inteiro.format,
+            empilhado: true,
+            altura: alt,
+          ),
+        );
+        final cumprimento = PainelGrafico(
+          titulo: 'Cumprimento de viagens',
+          subtitulo: 'Realizadas sobre programadas, por turno',
+          altura: altura,
+          construir: (_) => r.cumprimento == null
+              ? const SemDado()
+              : _caberNaAltura(
+                  largo,
+                  BarrasTurnos(
+                    cumprimento: r.cumprimento,
+                    realizadas: r.viagensRealizadas,
+                    programadas: r.viagensProgramadas,
+                    turnos: r.turnos ?? const [],
+                  ),
+                ),
+        );
+        if (!largo) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [cumprimento, const SizedBox(height: Esp.s4), quilometragem],
+          );
+        }
+        return Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(flex: 5, child: passageiros),
+            Expanded(flex: 5, child: quilometragem),
             const SizedBox(width: Esp.s5),
             Expanded(flex: 3, child: cumprimento),
           ],
-        ),
-        const SizedBox(height: Esp.s5),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(child: quilometragem),
-            const SizedBox(width: Esp.s6),
-            Expanded(child: financeiro),
-          ],
-        ),
-      ],
-    );
+        );
+
+      case TelaPainel.financeiro:
+        return PainelGrafico(
+          titulo: 'Venda × validação de créditos',
+          subtitulo: 'Créditos vendidos e validados na catraca$janela',
+          topo: AlertaCirculante(alerta: _alerta),
+          altura: altura,
+          construir: (alt) => _graficoDiario(
+            datas,
+            [
+              SerieGrafico('Vendidos', Cores.primaria, _serie(datas, 'vendas')),
+              SerieGrafico('Validados', Cores.destaque, _serie(datas, 'utilizacao')),
+            ],
+            _moeda.format,
+            empilhado: false,
+            altura: alt,
+          ),
+        );
+    }
   }
 }

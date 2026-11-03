@@ -24,12 +24,11 @@ ThemeData criarTema() {
     dividerTheme: const DividerThemeData(color: Cores.borda, thickness: 1, space: 1),
     cardTheme: const CardThemeData(
       color: Cores.superficie,
-      elevation: 0,
+      elevation: 2,
+      shadowColor: Color(0x3324305F),
+      surfaceTintColor: Colors.transparent,
       margin: EdgeInsets.zero,
-      shape: RoundedRectangleBorder(
-        side: BorderSide(color: Cores.borda),
-        borderRadius: BorderRadius.all(Radius.circular(Esp.raio)),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(8))),
     ),
     appBarTheme: const AppBarTheme(
       backgroundColor: Cores.superficie,

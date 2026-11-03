@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
 
-/// Tokens de cor do design system (Figma, modo claro).
+/// Tokens de cor: identidade do site da Prefeitura de São Caetano do Sul (azul-marinho e verde-água).
 class Cores {
   Cores._();
 
   // Cores principais
-  static const texto = Color(0xFF101720);
-  static const fundo = Color(0xFFF5F5F5);
-  static const primaria = Color(0xFF1A62AC);
-  static const secundaria = Color(0xFFD7EAFF);
-  static const destaque = Color(0xFF08BE62);
+  static const texto = Color(0xFF1B2447);
+  /// Fundo cinza-azulado: os cards brancos se destacam (o branco puro cansava na TV)
+  static const fundo = Color(0xFFDCE2EC);
+  static const primaria = Color(0xFF24305F);
+  static const secundaria = Color(0xFFD3D9EA);
+  static const destaque = Color(0xFF49A292);
+  /// Azul-marinho claro: segunda série dos gráficos que já usam a primária
+  static const primariaClara = Color(0xFF8C97C2);
 
   /// Degradê primário: blue-500 -> green-500
   static const degradePrimario = LinearGradient(colors: [primaria, destaque]);
@@ -17,10 +20,11 @@ class Cores {
   // Superfícies e estados usados nas telas
   static const superficie = Colors.white;
   static const borda = white600;
-  static const textoApagado = black300;
+  static const textoApagado = Color(0xFF655E7A);
   static const esqueleto = Color(0xFFDDDDDD);
   static const alerta = Color(0xFFE0A100);
   static const erro = Color(0xFFD03B3B);
+  static const vermelho50 = Color(0xFFFBEAEA);
 
   // Black
   static const black50 = Color(0xFFE7E8E9);

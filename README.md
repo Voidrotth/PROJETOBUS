@@ -67,7 +67,6 @@ Abra **`PROJETOBUS\backend\.env`** no Bloco de Notas e preencha:
 | `JWT_SEGREDO` | um texto longo e aleatório (é o que mantém os logins válidos) |
 | `OPENROUTER_API_KEY` | chave da OpenRouter (só é usada quando chega um relatório com colunas diferentes) |
 | `PORT` | porta do sistema (padrão `3000`) |
-| `CHAVE_COMPUTADOR_SEMOB` | um texto longo e aleatório: é a "senha" do computador da SEMOB, que entra sem login (veja "Abrir no computador da SEMOB") |
 
 As outras variáveis (`IA_MODELO`, `DADOS_PASTA`) já vêm prontas.
 
@@ -90,7 +89,7 @@ O formato do comando é:
 npm run criar-usuario -- <usuário> <senha> "<nome>"
 ```
 
-- O usuário criado é sempre administrador. O dashboard só aceita administradores (e o computador da SEMOB, pela chave).
+- O usuário criado é sempre administrador. O dashboard só aceita administradores.
 - A senha precisa ter pelo menos 6 caracteres.
 - O usuário não pode repetir. Se aparecer `Já existe um usuário com este e-mail`, escolha outro nome de
   usuário.
@@ -137,16 +136,12 @@ O Chrome abre sozinho. Depois de alterar o código, aperte `r` no terminal para 
 
 # Abrir no computador da SEMOB
 
-1. Preencha `CHAVE_COMPUTADOR_SEMOB` no `.env` e reinicie o backend.
-2. No navegador do computador da SEMOB, abra:
+1. No navegador do computador da SEMOB, abra **http://ENDERECO_DO_SERVIDOR:3000**.
+2. Entre com o usuário e a senha de um administrador (veja "Criar os usuários").
+3. Deixe o navegador em tela cheia (`F11`).
 
-   **http://ENDERECO_DO_SERVIDOR:3000/?semob=SUA_CHAVE**
-
-3. Deixe o navegador em tela cheia (`F11`). Não precisa fazer login nem tocar em nada.
-
-- A chave só deixa **ver** os indicadores: não envia relatórios nem altera nada.
-- Quem tem o endereço com a chave vê o dashboard. Se ela vazar, troque `CHAVE_COMPUTADOR_SEMOB` e reinicie o backend.
-- Sem a chave, o endereço abre o login, e um administrador vê a mesma tela.
+- O acesso é só por login: sem usuário e senha, ninguém vê os indicadores.
+- A sessão vale por 12 horas; depois o painel volta para a tela de login.
 
 # O que o painel mostra
 
@@ -271,7 +266,7 @@ Comandos do dia a dia:
 2. Instalar as dependências:
    `cd PROJETOBUS\backend` → `copy .env.example .env` → `npm install` →
    `cd ..\frontend` → `flutter pub get` → `flutter build web`
-3. Configurar `PROJETOBUS\backend\.env` (`MONGODB_URI`, `JWT_SEGREDO`, `CHAVE_COMPUTADOR_SEMOB` e `PORT`).
+3. Configurar `PROJETOBUS\backend\.env` (`MONGODB_URI`, `JWT_SEGREDO` e `PORT`).
 4. Criar um administrador: `cd ..\backend` → `npm run criar-usuario -- pedro "minhasenha" "Pedro"`
 5. Iniciar o backend: `npm run dev`
-6. No computador da SEMOB, abrir **http://ENDERECO_DO_SERVIDOR:3000/?semob=SUA_CHAVE** em tela cheia (`F11`).
+6. No computador da SEMOB, abrir **http://ENDERECO_DO_SERVIDOR:3000**, entrar com o administrador e deixar em tela cheia (`F11`).

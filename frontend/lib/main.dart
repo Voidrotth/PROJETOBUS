@@ -10,8 +10,8 @@ Future<void> main() async {
   runApp(const AplicativoProjetoBus());
 }
 
-/// Dashboard para o computador da SEMOB, que abre com ?semob=CHAVE no endereço e não passa pelo login;
-/// a administração pode entrar com usuário e senha e vê a mesma tela.
+/// Dashboard para o computador da SEMOB: entra com usuário e senha de administrador e mostra a
+/// Visão Geral.
 class AplicativoProjetoBus extends StatefulWidget {
   const AplicativoProjetoBus({super.key});
 
@@ -23,7 +23,7 @@ class _AplicativoProjetoBusEstado extends State<AplicativoProjetoBus> {
   @override
   void initState() {
     super.initState();
-    // Token expirado ou chave errada: volta ao login
+    // Token expirado: volta ao login
     Sessao.aoExpirar = () => setState(() {});
   }
 

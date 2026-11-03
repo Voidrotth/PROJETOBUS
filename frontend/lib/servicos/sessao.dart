@@ -14,18 +14,11 @@ class Sessao {
   static VoidCallback? aoExpirar;
 
   static bool get logado => token != null;
-  /// Administração ou computador da SEMOB (que só lê os indicadores)
-  static bool get podeVerPainel => logado && ['admin', 'computador'].contains(usuario?['papel']);
+  /// Só administradores veem o painel
+  static bool get podeVerPainel => logado && usuario?['papel'] == 'admin';
   static String get nome => usuario?['nome'] ?? '';
 
   static Future<void> carregar() async {
-    // Computador da SEMOB: http://ENDERECO/?semob=CHAVE (CHAVE_COMPUTADOR_SEMOB do .env do backend). Não salva nada.
-    final chaveSemob = kIsWeb ? Uri.base.queryParameters['semob'] : null;
-    if (chaveSemob != null && chaveSemob.isNotEmpty) {
-      token = chaveSemob;
-      usuario = {'papel': 'computador', 'nome': 'Computador da SEMOB'};
-      return;
-    }
     final preferencias = await SharedPreferences.getInstance();
     token = preferencias.getString(_chaveToken);
     final usuarioSalvo = preferencias.getString(_chaveUsuario);

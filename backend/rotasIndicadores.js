@@ -12,8 +12,8 @@ const { rota, ErroHttp } = require('./tratarErro');
 const { emitirParaPainel } = require('./tempoReal');
 
 roteador.use(autenticar);
-// O computador da SEMOB só lê os indicadores (GET /); o resto é da administração
-roteador.use((req, res, next) => (req.method === 'GET' && req.path === '/' ? next() : exigirPapel('admin')(req, res, next)));
+// Só administradores logados acessam os indicadores
+roteador.use(exigirPapel('admin'));
 
 const TIPOS_DIA = {
   util: 'Dia útil',

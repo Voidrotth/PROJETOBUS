@@ -57,6 +57,14 @@ endereço do sistema.
 
 ---
 
+# Subir o link
+
+```
+"C:\Program Files (x86)\cloudflared\cloudflared.exe" tunnel --url http://localhost:3100
+```
+
+---
+
 # Telas
 
 **Login** (todo acesso passa por aqui, inclusive o do computador da SEMOB)

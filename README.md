@@ -150,9 +150,10 @@ O Chrome abre sozinho. Depois de alterar o código, aperte `r` no terminal para 
 
 # O que o painel mostra
 
-A cada **1 minuto** a tela troca de período, sempre no mais recente que tem dados:
-**Diário → Semanal** (segunda a domingo) **→ Quinzenal** (dias 1 a 15 e 16 ao fim do mês) **→ Mensal** →
-volta ao diário. Uma barra no topo mostra quanto falta para a próxima troca. O topo também mostra o
+A cada **1 minuto** a tela troca de período:
+**Diário → Semanal** (segunda a domingo) **→ Quinzenal** (dias 1 a 15 e 16 ao fim do mês) **→ Mensal**.
+Depois do mensal, o ciclo recomeça no **mês seguinte** com dados: abre em setembro e segue para julho,
+agosto, setembro e assim por diante. Em cada mês, o diário mostra o último dia com dados daquele mês. Uma barra no topo mostra quanto falta para a próxima troca. O topo também mostra o
 relógio, a data e até que dia vão os dados ("dados até ...").
 
 Para mudar o tempo de cada período, use os botões **−** e **+** ao lado de "trocar a cada" (de 10 em

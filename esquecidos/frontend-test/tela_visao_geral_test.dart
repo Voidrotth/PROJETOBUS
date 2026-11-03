@@ -26,7 +26,7 @@ void main() {
     }, cliente);
   }
 
-  testWidgets('painel abre no último dia com dados e troca de período sozinha a cada minuto', (tester) async {
+  testWidgets('painel abre no último dia com dados, troca de período a cada minuto e de mês a cada ciclo', (tester) async {
     await abrir(tester, const Size(1920, 1080));
 
     for (final titulo in [
@@ -61,8 +61,13 @@ void main() {
     expect(find.text('1ª quinzena · set/2026'), findsOneWidget);
     await umMinuto();
     expect(find.text('Setembro de 2026'), findsOneWidget);
+    // Depois do mensal o ciclo passa para o mês seguinte: de setembro volta a julho
     await umMinuto();
-    expect(find.text('Seg, 14/09/2026'), findsOneWidget);
+    expect(find.text('Sex, 31/07/2026'), findsOneWidget);
+    for (var i = 0; i < 3; i++) {
+      await umMinuto();
+    }
+    expect(find.text('Julho de 2026'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

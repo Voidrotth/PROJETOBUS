@@ -34,8 +34,8 @@ const _chaveSegundos = 'segundos_por_periodo';
 const _segundosEntreRecargas = 300;
 
 /// Visão Geral da operação para o computador da SEMOB (ligado 24 h, sem botões): 5 indicadores e 4
-/// gráficos do período mais recente, trocando sozinho Diário → Semanal → Quinzenal → Mensal a cada
-/// minuto. Os dados são os dos relatórios do Smart Report (GET /api/indicadores); a série inteira
+/// gráficos, trocando sozinho Diário → Semanal → Quinzenal → Mensal a cada minuto; a cada volta
+/// completa passa para o mês seguinte com dados (começa no mais recente e volta ao primeiro). Os dados são os dos relatórios do Smart Report (GET /api/indicadores); a série inteira
 /// vem numa chamada só e os períodos são recortados aqui.
 class TelaVisaoGeral extends StatefulWidget {
   /// Desligado nos testes: o Socket.IO tentaria conectar num servidor de verdade
@@ -56,6 +56,8 @@ class _TelaVisaoGeralEstado extends State<TelaVisaoGeral> {
 
   TipoPeriodo _tipo = TipoPeriodo.diario;
   Periodo? _periodo;
+  /// Mês mostrado no ciclo (índice em _mesesComDados); avança a cada volta completa dos períodos
+  int _mes = -1;
 
   io.Socket? _socket;
   Timer? _relogio;
@@ -105,7 +107,10 @@ class _TelaVisaoGeralEstado extends State<TelaVisaoGeral> {
     });
     if (_restante <= 0) {
       _restante = _segundosPorPeriodo;
-      _trocarTipo(TipoPeriodo.values[(_tipo.index + 1) % TipoPeriodo.values.length]);
+      final proximo = TipoPeriodo.values[(_tipo.index + 1) % TipoPeriodo.values.length];
+      // Depois do mensal, o ciclo recomeça no mês seguinte (volta ao primeiro depois do último)
+      if (proximo.index == 0 && _mesesComDados.isNotEmpty) _mes = (_mes + 1) % _mesesComDados.length;
+      _trocarTipo(proximo);
     }
     if (_segundos % _segundosEntreRecargas == 0) _carregar(silencioso: true);
   }
@@ -142,9 +147,10 @@ class _TelaVisaoGeralEstado extends State<TelaVisaoGeral> {
         _porData = {for (final dia in dias) dia['data'] as String: dia};
         _alerta = resposta['alertaCirculante'] as Map<String, dynamic>?;
         _erro = null;
-        // Sempre o período mais recente com dados
-        final ultima = _ultimaData;
-        if (ultima != null) _periodo = Periodo.contendo(_tipo, ultima);
+        // Ao abrir, começa no mês mais recente com dados
+        if (_mes < 0 || _mes >= _mesesComDados.length) _mes = _mesesComDados.length - 1;
+        final referencia = _referencia;
+        if (referencia != null) _periodo = Periodo.contendo(_tipo, referencia);
       });
     } catch (e) {
       if (mounted) setState(() => _erro = e is ErroApi ? e.mensagem : 'Sem conexão com o servidor');
@@ -154,6 +160,17 @@ class _TelaVisaoGeralEstado extends State<TelaVisaoGeral> {
   }
 
   DateTime? get _ultimaData => _dias == null || _dias!.isEmpty ? null : dataDeIso(_dias!.last['data'] as String);
+
+  /// Meses que têm dados, em ordem (ex.: 2026-07, 2026-08, 2026-09)
+  List<String> get _mesesComDados => [...{for (final dia in _dias ?? const []) (dia['data'] as String).substring(0, 7)}];
+
+  /// Último dia com dados do mês do ciclo: é ele que o diário mostra e que define semana, quinzena e mês
+  DateTime? get _referencia {
+    final meses = _mesesComDados;
+    if (meses.isEmpty || _mes < 0 || _mes >= meses.length) return _ultimaData;
+    final doMes = _dias!.lastWhere((dia) => (dia['data'] as String).startsWith(meses[_mes]));
+    return dataDeIso(doMes['data'] as String);
+  }
 
   /// Feriado cadastrado ou dia útil com programação reduzida (os relatórios não trazem feriados)
   bool _atipico(String iso) {
@@ -177,10 +194,10 @@ class _TelaVisaoGeralEstado extends State<TelaVisaoGeral> {
   }
 
   void _trocarTipo(TipoPeriodo tipo) {
-    final ultima = _ultimaData;
+    final referencia = _referencia;
     setState(() {
       _tipo = tipo;
-      _periodo = ultima == null ? null : Periodo.contendo(tipo, ultima);
+      _periodo = referencia == null ? null : Periodo.contendo(tipo, referencia);
     });
   }
 

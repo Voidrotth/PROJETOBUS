@@ -5,8 +5,10 @@ estáticos recebidos por e-mail.
 
 O dashboard foi feito para ficar aberto no **computador da SEMOB, ligado 24 horas** a uma tela grande, com o navegador em tela cheia: não tem botões. Ele mostra quilometragem,
 viagens, passageiros pagantes, passageiros não pagantes e informações financeiras, com gráficos e
-comparação com o período anterior, e troca sozinho entre **diário, semanal, quinzenal e mensal** a cada
-1 minuto.
+comparação com o período anterior. As informações são divididas em três telas por assunto
+(**Passageiros, Operação e Financeiro**), que trocam sozinhas a cada 20 segundos; depois das três, o painel
+passa para o próximo período (**diário, semanal, quinzenal e mensal**), então cada período fica 1 minuto
+na tela. As cores, a fonte (Poppins) e o brasão seguem o site da Prefeitura de São Caetano do Sul.
 
 Um único endereço serve tudo: o backend (Node.js) entrega a API e o painel (Flutter Web). Os dados ficam
 no MongoDB Atlas e vêm dos relatórios do **Smart Report**.
@@ -71,13 +73,21 @@ endereço do sistema.
 
 ![Tela de login](docs/imagens/login.png)
 
-**Painel, visão diária** (o dia é comparado com o mesmo dia da semana anterior)
+**Painel, visão diária: Passageiros** (o dia é comparado com o mesmo dia da semana anterior; alta em verde, queda em vermelho)
 
-![Painel na visão diária](docs/imagens/painel-diario.png)
+![Painel na visão diária, tela Passageiros](docs/imagens/painel-diario.png)
 
-**Painel, visão mensal**
+**Painel, visão diária: Operação**
 
-![Painel na visão mensal](docs/imagens/painel-mensal.png)
+![Painel na visão diária, tela Operação](docs/imagens/painel-operacao.png)
+
+**Painel, visão diária: Financeiro**
+
+![Painel na visão diária, tela Financeiro](docs/imagens/painel-financeiro.png)
+
+**Painel, visão mensal: Passageiros**
+
+![Painel na visão mensal, tela Passageiros](docs/imagens/painel-mensal.png)
 
 **Painel no celular**
 

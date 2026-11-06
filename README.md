@@ -62,7 +62,7 @@ endereço do sistema.
 # Subir o link
 
 ```
-[[[["C:\Program Files (x86)\cloudflared\cloudflared.exe" tunnel --url http://localhost:3100](https://multiple-prepared-identifying-macro.trycloudflare.com/)](https://multiple-prepared-identifying-macro.trycloudflare.com/)](https://multiple-prepared-identifying-macro.trycloudflare.com/)](https://multiple-prepared-identifying-macro.trycloudflare.com/)
+https://semob.187-41-123-54.sslip.io/
 ```
 
 ---

@@ -62,7 +62,7 @@ endereço do sistema.
 # Subir o link
 
 ```
-"C:\Program Files (x86)\cloudflared\cloudflared.exe" tunnel --url http://localhost:3100
+https://semob.187-41-123-54.sslip.io/
 ```
 
 ---

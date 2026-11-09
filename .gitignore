@@ -37,3 +37,6 @@ atlas-credentials (1).env
 *.env
 .tmp.driveupload/
 .tmp.drivedownload/
+
+# Senhas locais (nunca no git)
+.senhas
